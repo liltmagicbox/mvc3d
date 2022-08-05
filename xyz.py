@@ -5,6 +5,7 @@
 #..what? anyway we use localpos and parent.
 
 class XYZ:
+    __slots__ = ['_x','_y','_z','_actor','_attr']
     #print(dir())#['__module__', '__qualname__']
     #print(__module__,__qualname__)#i love py!
     #__copyclass = __qualname__not this..
@@ -15,26 +16,21 @@ class XYZ:
         self._actor = actor
         self._attr = attr
 
-        self.isreporter = False
         if actor:
             if attr:
-                self.isreporter = True
-                self._report = self._real_report
+                pass            
             else:
-                raise ValueError('XYZ __init__ requires attr,too!')
+                raise ValueError('XYZ __init__ requires attr too, not only actor.')
     
     #===report system. actor.pos=Vec3(0,0,0,self,'pos') -> actor.pos.x+=1 => actor.pos=(1,0,0)
     def _report(self):
-        return
-        #print('pass')
-    def _real_report(self):
+        setattr(self._actor, self._attr, (self._x,self._y,self._z) )
         #self.actor.pos = (self.x,self.y,self.z)
-        setattr(self._actor, self._attr, (self._x,self._y,self._z) )    
     def set(self,x,y,z, report=False):
         self._x = x
         self._y = y
         self._z = z
-        if report:
+        if report and self._actor:
             self._report()
     def copy(self):
         return self.__class__(self._x,self._y,self._z)
@@ -45,26 +41,29 @@ class XYZ:
     @x.setter
     def x(self,value):
         self._x = value
-        self._report()
+        if self._actor:
+            self._report()
     @property
     def y(self):
         return self._y
     @y.setter
     def y(self,value):
         self._y = value
-        self._report()
+        if self._actor:
+            self._report()
     @property
     def z(self):
         return self._z
     @z.setter
     def z(self,value):
         self._z = value
-        self._report()
+        if self._actor:
+            self._report()
 
     def __repr__(self):
         repmsg = ''
-        if self.isreporter:
-            repmsg = f'isReporter'
+        if self._actor:
+            repmsg = f'Reporting'
         return f"{self.__class__.__name__} x:{self._x},y:{self._y},z:{self._z} {repmsg}"
     def __bool__(self):
         return any( (self._x,self._y,self._z) )
@@ -163,6 +162,149 @@ class XYZ:
 
 
 
+def test_ifvsfunc():
+    #test 10M , self._report() is faster than if self._actor: self._report()
+    #3.7699246406555176
+    #3.9296185970306396
+    class XYZ:
+        __slots__ = ['_x','_y','_z','_actor','_attr']
+        def __init__(self,x,y,z, actor=None,attr=None):
+            self._x = x
+            self._y = y
+            self._z = z
+            self._actor = actor
+            self._attr = attr
+        def _report(self):
+            if self._actor:
+                setattr(self._actor, self._attr, (self._x,self._y,self._z) )
+        @property
+        def x(self):
+            return self._x
+        @x.setter
+        def x(self,value):
+            self._x = value
+            self._report()
+
+    import time
+    t = time.time()
+    print(time.time()-t)
+
+    class Actor:
+        def __init__(self):
+            self.pos = 0
+   
+    vv=Actor()
+    a = XYZ(1,2,3,vv,'pos')
+    
+    t = time.time()
+    for i in range(1000_0000):
+        a.x+=0.2
+    print(time.time()-t)
+
+
+    class XYZ:
+        __slots__ = ['_x','_y','_z','_actor','_attr']
+        def __init__(self,x,y,z, actor=None,attr=None):
+            self._x = x
+            self._y = y
+            self._z = z
+            self._actor = actor
+            self._attr = attr
+        def _report(self):
+            setattr(self._actor, self._attr, (self._x,self._y,self._z) )
+        @property
+        def x(self):
+            return self._x
+        @x.setter
+        def x(self,value):
+            self._x = value
+            if self._actor:
+                self._report()
+
+    vv=Actor()
+    a = XYZ(1,2,3,vv,'pos')
+    t = time.time()
+    for i in range(1000_0000):
+        a.x+=0.2
+    print(time.time()-t)
+
+
+
+
+
+def test_x():
+    #30% slower!
+    #result: 1.func() is high cost, 600ms/10M, 6ms/100k. while if requires 150ms/10M. 15ms/1M. 1.5ms/100k
+    2.2450010776519775
+    1.6914513111114502
+    1.54 #without if. not that difference!
+    import time
+    t = time.time()
+    print(time.time()-t)
+
+
+    class XYZ:
+        __slots__ = ['_x','_y','_z','_actor','_attr']
+        def __init__(self,x,y,z, actor=None,attr=None):
+            self._x = x
+            self._y = y
+            self._z = z
+            self._actor = actor
+            self._attr = attr
+        def _report(self):
+            if self._actor:
+                setattr(self._actor, self._attr, (self._x,self._y,self._z) )
+        @property
+        def x(self):
+            return self._x
+        @x.setter
+        def x(self,value):
+            self._x = value
+            self._report()
+
+    class Actor:
+        def __init__(self):
+            self.pos = 0
+   
+
+    t = time.time()
+
+    a = XYZ(1,2,3)
+    for i in range(1000_0000):
+        a.x+=.2
+    
+    print(time.time()-t)
+
+
+    class XYZ:
+        __slots__ = ['_x','_y','_z','_actor','_attr']
+        def __init__(self,x,y,z, actor=None,attr=None):
+            self._x = x
+            self._y = y
+            self._z = z
+            self._actor = actor
+            self._attr = attr
+        def _report(self):
+            setattr(self._actor, self._attr, (self._x,self._y,self._z) )
+        @property
+        def x(self):
+            return self._x
+        @x.setter
+        def x(self,value):
+            self._x = value
+            if self._actor:
+                self._report()
+
+    t = time.time()
+    
+    a = XYZ(1,2,3)
+    for i in range(1000_0000):
+        a.x+=.2
+    
+    print(time.time()-t)
+    
+
+
 
 
 
@@ -171,6 +313,7 @@ class XYZ:
 
 
 class XYZW:
+    __slots__ = ['_x','_y','_z','_w','_actor','_attr']
     def __init__(self,x,y,z,w, actor=None,attr=None):
         self._x = x
         self._y = y
@@ -178,26 +321,24 @@ class XYZW:
         self._w = w
         self._actor = actor
         self._attr = attr
-
-        self.isreporter = False
+        
         if actor:
             if attr:
-                self.isreporter = True
-                self._report = self._real_report
+                pass
             else:
-                raise ValueError('XYZW __init__ requires attr too!')
+                raise ValueError('XYZW __init__ requires attr too, not only actor.')
     
     #===report system. actor.pos=Vec3(0,0,0,self,'pos') -> actor.pos.x+=1 => actor.pos=(1,0,0)
     def _report(self):
-        return
-    def _real_report(self):
-        setattr(self._actor, self._attr, (self._x,self._y,self._z, self._w) )    
-    def set(self,x,y,z,w):
+        setattr(self._actor, self._attr, (self._x,self._y,self._z, self._w) )
+        #if self._actor:
+    def set(self,x,y,z,w, report=False):
         self._x = x
         self._y = y
         self._z = z
         self._w = w
-        self._report()
+        if report and self._actor:
+            self._report()
     def copy(self):
         return self.__class__(self._x,self._y,self._z,self._w)
 
@@ -207,33 +348,37 @@ class XYZW:
     @x.setter
     def x(self,value):
         self._x = value
-        self._report()
+        if self._actor:
+            self._report()
     @property
     def y(self):
         return self._y
     @y.setter
     def y(self,value):
         self._y = value
-        self._report()
+        if self._actor:
+            self._report()
     @property
     def z(self):
         return self._z
     @z.setter
     def z(self,value):
         self._z = value
-        self._report()
+        if self._actor:
+            self._report()
     @property
     def w(self):
         return self._w
     @w.setter
     def w(self,value):
         self._w = value
-        self._report()
+        if self._actor:
+            self._report()
 
     def __repr__(self):
         repmsg = ''
         if self.isreporter:
-            repmsg = f'isReporter'
+            repmsg = f'Reporting'
         return f"{self.__class__.__name__} x:{self._x},y:{self._y},z:{self._z},w:{self._w} {repmsg}"
     def __bool__(self):
         return any( (self._x,self._y,self._z,self._w) )
@@ -244,12 +389,10 @@ class XYZW:
         x,y,z,w = self
         xx,yy,zz,ww = other
         return x==xx and y==yy and z==zz and w==ww
-        #return self._x==other.x and self._y==other.y and self._z==other.z
     def __ne__(self,other):
         x,y,z,w = self
         xx,yy,zz,ww = other
         return x!=xx or y!=yy or z!=zz or w!=ww
-        #return not self == other
     
     @staticmethod
     def _parse(value):        
@@ -388,27 +531,29 @@ def _test_xyzw():
 
 
 def _test_report():
-    vv=XYZ(1,2,3,)
+    class Actor:
+        def __init__(self):
+            self.pos = 0
+    vv=Actor()
+
     #v=XYZReport(1,2,3, vv,'vect')
-    v=XYZ(1,2,3, vv,'vect')
+    v=XYZ(1,2,3, vv,'pos')
     v.x=5
     v//=15,2,1
-    print(v)
-    v.set(3,2,1)
-    print(vv.vect)#(3, 2, 1)
+    print(v,'v is')
+
+    v.set(3,2,1,True)
+    print(vv.pos,'vv pos')#(3, 2, 1)
     v+=(1,2,3)
     print(v)
-    vvv = vv+50
     
     vvv = v+50
     print(vvv)
 
-    vv+=3
-    print(vv,'addd')
-    vv//=3,2,1
-    vv.x=5
-    vv.y=5
-    vv.z=5
+    v//=3,2,1
+    v.x=5
+    v.y=5
+    v.z=5
 
     try:
         no=XYZ(1,2,3,4)
