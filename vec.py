@@ -6,7 +6,8 @@ class Vec3(XYZ):
     def __init__(self, x,y,z=0, actor=None,attr=None ):
         #if z==None:#means 2d xy
             #x,y,z = x,0,y
-        XYZ.__init__(self,x,y,z,actor,attr)
+        #XYZ.__init__(self,x,y,z,actor,attr)
+        super().__init__(x,y,z,actor,attr)
 
     # @classmethod
     # def xy(cls,x,y):
@@ -32,8 +33,9 @@ class Vec3(XYZ):
     #===method
 
 class Euler(XYZ):
-    def __init__(self, x,y,z=0, actor=None,attr=None ):
-        XYZ.__init__(self,x,y,z,actor,attr)        
+    def __init__(self, x,y,z, actor=None,attr=None ):
+        #XYZ.__init__(self,x,y,z,actor,attr)
+        super().__init__(x,y,z,actor,attr)        
 
     def to_front(self):#def front(self):return self.pos.toFront()
         """front is 1,0,0 x=1"""
@@ -50,92 +52,10 @@ class Quat(XYZW):
 
 
 
-class Actor:
-    def __init__(self):
-        self._pos = Vec3(0,0,0,self,'pos')#if this Vec3 changes, it reports to self.pos=xxx
-        self._rot = Euler(0,0,0,self,'rot')
-        self._scale = Vec3(1,1,1,self,'scale')
-    def __repr__(self):
-        return f"{self._pos}"
-
-    @staticmethod
-    def _parse(value):
-        x,y,*z = value    
-        #print(bool(z),'boo',z)#True boo [0]
-        if z:
-            value = x,y,z[0]
-        else:
-            value = x,0,y
-        return value
-    
-    
-    #===pos rot scale
-    @property
-    def pos(self):
-        return self._pos
-    @pos.setter
-    def pos(self,value):
-        '''can pos=3,2'''
-        x,y,z = self._parse(value)
-        #self._pos = x,y,z
-        self._pos.set(x,y,z)
-    
-    @property
-    def rot(self):
-        return self._rot
-    @rot.setter
-    def rot(self,value):
-        x,y,z = self._parse(value)
-        self._rot.set(x,y,z)
-
-    @property
-    def scale(self):
-        return self._scale
-    @scale.setter
-    def scale(self,value):
-        x,y,z = self._parse(value)
-        self._scale.set(x,y,z)
-
-    #===game vector kinds
-    @property
-    def front(self):
-        return self._pos.toFront()
-
-
-
-
-def _test_xy():
-    #Vec3(5,4)# it says 3, so let this not happened..
-    #v = Vec3.xy(5,4)#not do this.
-
-    v = Vec3(5,0,4)
-    v.set(3,2,1)
-    print(v,'321')
-
-    v.xy=(6,5)
-    print(v)
-    print(v.xy,'605')
-
-    #v.setxy(3,2)
-    #Vec3.xy=(3,2)
-    #actor.pos.xy=(3,2)
-
-    #actor.pos = Vec3.xy(3,2) #we not do this!
-    actor = Actor()
-    actor.pos=3,2,1
-    print(actor)
-    actor.pos=3,2#shall be placed in actor. not vector.fine.
-
-    print(actor)
-    print('aaa')
-
-
-
-
-
 class Vec4(XYZW):
     def __init__(self, x,y,z,w, actor=None,attr=None ):
-        XYZW.__init__(self,x,y,z,w, actor,attr)
+        #XYZW.__init__(self,x,y,z,w, actor,attr)
+        super().__init__(x,y,z,w, actor,attr)
 
 
 
