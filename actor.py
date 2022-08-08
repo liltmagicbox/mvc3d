@@ -1,5 +1,8 @@
 from vec import Vec3,Euler
 
+import uuid
+_ActorId = 0
+
 
 def _test_meshinherit():
     #https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
@@ -60,7 +63,7 @@ class Hierarchy:
             value.add(self)
         #self._parent = value
     
-    def add(self, child):
+    def add(self, child):#attach world pos. not add(keep=True,) if command..
         """not [child,] but child"""
         if self==child:#wow..
             'one cannot add itself!'
@@ -161,64 +164,40 @@ for 'At a glance'
 
 
 
-
-
-
-class EventDispatcher:#it not requires init, nor forces having listners..
-    #https://github.com/mrdoob/three.js/blob/dev/src/core/EventDispatcher.js
-    #def __init__(self):
-    #    self.listeners = {}
-    def addEventListener(self, key, listener):
-        ldict = getattr(self, 'listeners', {})
-        if not key in ldict:
-            ldict[key] = []
-        ldict[key].append(listener)   
-        
-        self.listeners = ldict
-
-e = EventDispatcher()
-e.addEventListener('nub', 'hom')
-
-print(e.listeners)
+#pos is parentpos+=
+#rot is rot*rot
+#scale is scale&scale
 
 
 
 
-class Group(Actor):
-    def __init__(self):
-        super().__init__()
-        self.isGroup=True#is for rendering..WEBGL.Renderer
-        self.type = 'Group'
 
-class MeshActor(Actor):
-    1
 
-class Matrix4:
-    1
 
-class Matrixer:
-    def __init__(self):
-        self.matrix = Matrix4()
-        self.matrixWorld = Matrix4()
-
-        #self.matrixAutoUpdate = False needit?
-        self.matrixWorldNeedsUpdate = False
 
 class Actor:
     def __init__(self):
         self._pos = Vec3(0,0,0, self,'pos')#if this Vec3 changes, it reports to self.pos=xxx
         self._rot = Euler(0,0,0, self,'rot')
         self._scale = Vec3(1,1,1 ,self,'scale')
-    
+        #self._quat = Quat()
+        #self.isActor = True
+        
+        self.id = _ActorId
+        _ActorId+=1
+        self.uuid = uuid.uuid4()
+
+        self.name = ''
+        self.type = 'Actor'
+
     def __repr__(self):
         return f"{self._pos}"
 
-    
-    
 
+    
     @staticmethod
     def _parse(value):
-        x,y,*z = value    
+        x,y,*z = value
         #print(bool(z),'boo',z)#True boo [0]
         if z:
             value = x,y,z[0]
@@ -233,7 +212,7 @@ class Actor:
         return self._pos
     @pos.setter
     def pos(self,value):
-        '''can pos=3,2'''
+        '''can pos=(3,2)'''
         x,y,z = self._parse(value)
         #self._pos = x,y,z
         self._pos.set(x,y,z)
@@ -253,6 +232,9 @@ class Actor:
     def scale(self,value):
         x,y,z = self._parse(value)
         self._scale.set(x,y,z)
+
+    #better rot has internal quat features..? and dynamically get quat..
+    #rot.toQuat()..
 
     #===game vector kinds
     @property
@@ -287,4 +269,68 @@ def _test_xy():
     print(actor)
     print('aaa')
 
-_test_xy()
+
+class Group(Actor):
+    def __init__(self):
+        super().__init__()
+        self.isGroup=True#is for rendering..WEBGL.Renderer
+        self.type = 'Group'
+
+class MeshActor(Actor):
+    1
+
+class Matrix4:
+    1
+
+class Matrixer:
+    def __init__(self):
+        self.matrix = Matrix4()
+        self.matrixWorld = Matrix4()
+
+        #self.matrixAutoUpdate = False needit?
+        self.matrixWorldNeedsUpdate = False
+
+
+
+
+
+
+
+
+class EventDispatcher:#it not requires init, nor forces having listners..
+    #https://github.com/mrdoob/three.js/blob/dev/src/core/EventDispatcher.js
+    #def __init__(self):
+    #    self.listeners = {}
+    def addEventListener(self, key, listener):
+        ldict = getattr(self, 'listeners', {})
+        if not key in ldict:
+            ldict[key] = []
+        ldict[key].append(listener)   
+        
+        self.listeners = ldict
+
+e = EventDispatcher()
+e.addEventListener('nub', 'hom')
+
+print(e.listeners)
+
+
+
+def main():
+    _test_xy()
+
+
+class Mesh(Actor):
+    def __init__(self, geo=None,mat=None):
+        super().__init__()
+        
+        if geo==None:
+            geo = Geometry.default()
+            geo = Geo.default()
+            #geo = MeshGeometry.default()
+            #geo = MeshGeometry.default()
+            #PointNormalMaterial
+            #MeshNormalMaterial
+
+        self.geo = geo
+        self.mat = mat
