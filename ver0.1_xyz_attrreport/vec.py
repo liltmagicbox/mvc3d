@@ -1,7 +1,12 @@
-from xyz import XYZ
+from xyz import XYZ, XYZW
+
+
 
 class Vec3(XYZ):
     def __init__(self, x,y,z=0):
+        #if z==None:#means 2d xy
+            #x,y,z = x,0,y
+        #XYZ.__init__(self,x,y,z,actor,attr)
         super().__init__(x,y,z)
 
     # @classmethod
@@ -44,3 +49,22 @@ class Euler(XYZ):
     def to_quat(self):
         """hope not that used again.."""
         return 1,1,1,1
+
+class Quat(XYZW):
+    1
+
+
+
+
+class Vec4(XYZW):
+    def __init__(self, x,y,z,w):
+        #XYZW.__init__(self,x,y,z,w, actor,attr)
+        super().__init__(x,y,z,w)
+
+
+
+def main():
+    1#_test_vec3()
+
+if __name__ == '__main__':
+    main()
