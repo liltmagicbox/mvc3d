@@ -169,10 +169,34 @@ for 'At a glance'
 #scale is scale&scale
 
 
+#a = Actor()
+# a.pos = (1,0,0)
+# a.speed = (0,1,0)
+# a.acc = (0,0,-9.8)
+# a.rpos
+# a.rspeed
+# a.racc
 
+#a.pos.acc = (1,0,0)
+#a.rot.speed = (1,0,0)
 
+#a.scale.speed = (0,0,1)
 
+#too bad range
+# if a.scale.z>10:
+#     a.scale.speed = (0,0,-1)
+# else a.scale<0:
+#     a.scale.speed = (0,0,1)
 
+#a.scale.ociliate(0,10,1)
+#a.scale.range(0,10,1)#start,end,step(speed),step(acc),curve?? we can't just acc..
+
+#new way:
+
+self._pos = Vec3(0,0,0,axis)
+#self._pos = Vec3AXIS(0,0,0)
+
+#ID POS SPD ACC  RPOS RSPD RACC
 
 
 class Actor:
