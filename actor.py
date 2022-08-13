@@ -193,7 +193,7 @@ for 'At a glance'
 
 #new way:
 
-self._pos = Vec3(0,0,0,axis)
+#self._pos = Vec3(0,0,0,axis)
 #self._pos = Vec3AXIS(0,0,0)
 
 #ID POS SPD ACC  RPOS RSPD RACC
@@ -316,6 +316,109 @@ class Matrixer:
 
 
 
+class Event:
+    def __init__(self, type, target=None):
+        self.type = type
+        self.target = target
+
+class MouseEvent(Event):
+    #https://www.w3.org/TR/uievents/#mouseevent
+    def __init__(self, type,clientX,clientY,target=None):
+        super().__init__(type,target)
+        self.cilentX = clientX
+        self.cilentY = clientY
+
+
+class EventDispatcher:
+    #https://ko.javascript.info/dispatch-events
+    def addEventL(self, type):
+        print(type)
+    def removeEventL(self):
+        1
+    def dispatchEvent(self, event):
+        1
+
+def ma(event):
+    print(event.target.id)
+
+# button.addEventL('click',ma)
+# document.addEventL('click',ma)
+# window.addEventL('click',ma)
+# world.addEventL('click',ma)
+
+class World(EventDispatcher):
+    def __init__(self):
+        self.listeners = {}
+
+a = Actor()
+#a.addEventL('keydown',a.jump)
+
+
+a.keymap = {'j',a.jump}
+a.keymap = {'j','jump'}
+a.keymap = {'s','jump*-0.1'}
+a.keymap = {'J_down','jump*-0.1'}
+
+#AxisInput()
+
+#EventJump
+def Jump(self):
+    1
+a.Jump= Jump
+
+class FPSController:
+    def __init__(self):
+        self.keymap = {
+        'w':'move*1',
+        's':'move*-1.0',
+        'a':'turn*-1',
+        'd':'turn*1',
+        
+        'M_X':'look*1',
+        "M_Y":'look*1',
+        
+        'J_LX':'move*1',
+        'J_L1':'jump',
+        }
+        #'L1 L2 L3 DPAD(UP DOWN LEFT RIGHT) LX RY ABXY'#LSTICK TOO LONG
+        #esc ctrl pagedown pageup insert delete home up down left right f11 space tap lshift rshift * - =
+        #num1 num0 num. num+ num/
+        #M_XY??? M_DX M_DXDY???
+
+keymap = {
+        'W': 'move_forward(0.2)',
+        'S': 'move_forward(-0.2)',
+        #'S': 'move_forward-1',
+        'D': 'move_right(0.2)',
+        'A': 'move_right(-0.2)',
+        'F': 'fire',
+        'M_DXDY': 'mouse_move',
+
+        'M_SCROLL_UP': 'set_fov(-5)',
+        'M_SCROLL_DOWN': 'set_fov(5)',
+
+        'J_LSTICK_Y': 'move_forward(0.1)',
+        'J_LSTICK_X': 'move_right(-0.1)',
+         }
+
+class FPSControlled:
+    def move():1
+    def turn():1
+    def look():1
+
+class Gunman:
+    def move(self, value):
+        1
+    def turn(self):
+        1
+    def look(self,x,y):
+        1
+
+controller = FPSController()
+gunman = Gunman()
+controller.target = gunman
+        
+
 
 
 
@@ -325,6 +428,7 @@ class EventDispatcher:#it not requires init, nor forces having listners..
     #https://github.com/mrdoob/three.js/blob/dev/src/core/EventDispatcher.js
     #def __init__(self):
     #    self.listeners = {}
+    #since this way, we not add attr {}, if not added
     def addEventListener(self, key, listener):
         ldict = getattr(self, 'listeners', {})
         if not key in ldict:
