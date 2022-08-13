@@ -87,7 +87,7 @@ class XYZ:
         xx = self._x+x
         yy = self._y+y
         zz = self._z+z
-        self.set(xx,yy,zz,True)
+        self.set(xx,yy,zz)
         return self
     def __isub__(self, value):
         #x,y,z = value
@@ -95,27 +95,27 @@ class XYZ:
         xx = self._x-x
         yy = self._y-y
         zz = self._z-z
-        self.set(xx,yy,zz,True)
+        self.set(xx,yy,zz)
         return self
     def __imul__(self, value):
         x,y,z = self._parse(value)
         xx = self._x*x
         yy = self._y*y
         zz = self._z*z
-        self.set(xx,yy,zz,True)
+        self.set(xx,yy,zz)
         return self
     def __itruediv__(self, value):
         x,y,z = self._parse(value)
         xx = self._x/x
         yy = self._y/y
         zz = self._z/z
-        self.set(xx,yy,zz,True)
+        self.set(xx,yy,zz)
         return self
     def __ifloordiv__(self, value):
         x,y,z = self._parse(value)
         xx = self._x//x
         yy = self._y//y
         zz = self._z//z
-        self.set(xx,yy,zz,True)
+        self.set(xx,yy,zz)
         return self
     #=================
