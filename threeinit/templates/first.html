@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>My first three.js app</title>
+        <style>
+            body { margin: 0; }
+        </style>
+    </head>
+    <body>
+        <button id='bb' name="button">눌러보세요</button>
+
+        <script src="static/js/three.js"></script>
+
+
+        <!-- <script>
+            function traditonal(){
+            let url = 'http://localhost:12800/view'
+
+            var form = document.createElement('form')
+            form.setAttribute('method','post')
+            form.setAttribute('target','_blank')
+            form.setAttribute('action', url)
+
+            field = document.createElement('input')
+            field.setAttribute('type', 'hidden')
+            field.setAttribute('name', 'naaam')
+            field.setAttribute('value', 'vvv')
+            form.appendChild(field)
+
+            document.body.appendChild(form)
+            form.submit()
+            console.log('ha')
+            }
+        </script> -->
+        <script>
+        // fetch('/moveb?x=3', {method:'post',body:{'x':'xx'} } )
+        // var resp = await fetch('/getview' , {method:'post',body:{} } )
+        // var jobj = await resp.json()
+        // data = jobj['data']
+
+            
+
+            function myFunction(){
+                var clitime = Date.now()
+                const data = { 'username': 'example', 'time':clitime};
+
+            fetch('http://localhost:12800/view',
+                {'method':'POST',
+                'headers':{'Content-Type':'application/json'},
+                'body':JSON.stringify(data)
+                }
+                )
+            .then((response) => response.json())
+            .then((data) => {
+                console.log(data)
+                console.log(Date.now()-clitime)}
+                );
+            console.log('ha')
+            }
+            button = document.getElementById('bb').addEventListener("click", myFunction)
+            // 1-7ms delay from .then.. too, toobad!
+        </script>
+
+        <script>
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+
+            const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+            const material = new THREE.MeshBasicMaterial( { color: 0xff00ff } );
+            //const material = new THREE.MeshPhongMaterial( { color: 0xff00ff } );
+            const cube = new THREE.Mesh( geometry, material );
+            scene.add( cube );
+
+            // const loader = new THREE.ObjectLoader();
+            // loader.load(
+            //     "app.json",
+
+            //     function (obj){
+            //         scene.add(obj);
+            //     }
+            //     );
+
+            
+
+            camera.position.z = 5;
+
+            let direction = 1
+            function animate() {
+                requestAnimationFrame( animate );
+                if (cube.position.x<-1){
+                    direction = 1
+                }
+                if (cube.position.x>1){
+                    direction = -1
+                }
+                cube.position.x += direction*0.01;
+                //cube.rotation.x += 0.01;
+                //cube.rotation.y += 0.01;
+
+                renderer.render( scene, camera );
+            };
+
+            animate();
+        </script>
+
+    </body>
+</html>
