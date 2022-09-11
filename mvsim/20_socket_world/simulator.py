@@ -8,7 +8,7 @@ class World:
         self.actors.append(actor)
     #===api
     def input(self,Event):
-        print('world got input::', Event)
+        print(' input-> world ', Event)
     def update(self,dt):
         self.actors.append(2)
     def get_draw(self):
@@ -125,8 +125,8 @@ class SocketViewer:
     def get_inputs(self):
         """here gets raw dict data. which shall be Event class.."""
         for i in self.queue.get_all():
-            ev = event.parse(i)
-            yield ev
+            events = event.parse(i)
+            yield from events
     def draw(self,draws):
         self.caster.cast(draws)
 
