@@ -178,6 +178,7 @@ class QueueRecv:
         while not queue.empty():
             yield queue.get()
 
+
 #==================
 def _qstest():
     q = QueueRecv(verbose = True)
@@ -187,13 +188,17 @@ def _qstest():
             print(i)
         time.sleep(2)
 
-
-
 #_qstest()
 
 
 
 
+class QueueOnRecv:
+    """open server socket, run thread, if new conn, put to queue."""
+    def __init__(self, on_recv, host=HOST, port=PORT, verbose=False):
+        kwargs={'host':host,'port':port, 'put_function':on_recv, 'verbose':verbose}
+        th = threading.Thread( target = server_recv_forever, kwargs = kwargs)
+        th.start()
 
 
 

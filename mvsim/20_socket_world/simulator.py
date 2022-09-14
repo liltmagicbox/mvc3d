@@ -1,44 +1,24 @@
 import threading
 import time
 
-class World:
-    def __init__(self):
-        self.actors = []
-    def add(self,actor):
-        self.actors.append(actor)
-    #===api
-    def input(self,Event):
-        print(' input-> world ', Event)
-    def update(self,dt):
-        self.actors.append(2)
-    def get_draw(self):
-        return self.actors
+from world import World,Actor
+from interface import ISimulator, IViewControl
 
-
-class Viewer:
-    #===api
-    def get_inputs(self):
-        return []
-    def draw(self,draws):
-        print(len(draws) )
-
-
-class Simulator:
+class Simulator(ISimulator):
     """ Simulator, that simulates world.
-    requires View_Control, API of .get_inputs()->[i], .draw(draws)
-
+    requires IView_Control to init.    
     sim.run(world).
     sim.run(world2)
     sim.pause() (pauses world.update. )
     sim.resume()
-    sim.stop() if you want.
+    sim._stop() if you want.
     win32, fps ~=70. fine. or sleep_time = 0
     """
     def __init__(self, view_control):
         self.view_control = view_control
 
-        self._flag_stop = None
-        self._flag_pause = None
+        self._flag_stop = threading.Event()
+        self._flag_pause = threading.Event()
 
         self._sleep_time = 0.014#60fps windows.
 
@@ -47,7 +27,7 @@ class Simulator:
         return self._sleep_time
     @sleep_time.setter
     def sleep_time(self,value):
-        self._sleep_time = value        
+        self._sleep_time = value
     
     @property
     def fps(self):
@@ -60,8 +40,8 @@ class Simulator:
 
     def run(self,world):
         """simulate world. world API: .input(i) .update(dt) .get_draw()->draws"""
+        #self.pause()
         self._stop()
-        self.pause()
         
         flag_stop = threading.Event()
         flag_pause = threading.Event()
@@ -77,74 +57,119 @@ class Simulator:
                 #=input
                 for i in self.view_control.get_inputs():
                     world.input(i)
+
                 #=update
                 if not flag_pause.is_set():
                     world.update(dt)
 
                 #=draw
-                draws = world.get_draw()
-                self.view_control.draw(draws)
+                draws = world.output()
+                self.view_control.draw(draws)#view_control now another role: event to outer world!
+                #lets keep it simple.
+                #draw_and_events = world.output()
+                #split event, if it's for internal!..nothere. since we split outer event anyway.                
 
                 time.sleep(self._sleep_time)
         
         th = threading.Thread( target = simrun )
         th.start()
-        
+
         self._flag_stop = flag_stop
         self._flag_pause = flag_pause
     
     def pause(self):
         """stops world update, while in-out still connected. do resume."""
-        if self._flag_pause:
-            self._flag_pause.set()
+        self._flag_pause.set()        
     def resume(self):
-        if self._flag_pause:
-            self._flag_pause.clear()
+        self._flag_pause.clear()
     def _stop(self):
         """stops thread while, if you want. .run also stops."""
-        if self._flag_stop:
-            self._flag_stop.set()    
+        self._flag_stop.set()
 
 
 
 
 
+#player press s, swap charactor. c1 -> c2 changed.
+#..is player input, not that world-actor path.
+#so, virtual local-world player got the raw input,
+# vplayer translates via keymap,  (no,if player changes,,) _assume same.
+# human press 's' -> controller sends 's' via socket.. /controller has keymap?! great!
+# abskey input is comming from socket. view_controll got this.
+# userid sent by     view_controller / somewhere stored {port:player}. or {session_key:player}
+# anymplayer sends abskey. what's next?
+# if the sim accepts anym key, it will send it to .. 'current player'
+# or gets player,(actually player actor.). fine.
+
+# anym keyinput -> current player.
+# session keyinput -> session's player.
+
+#where current/session player data (dict is fine) is stored?
+# human-> viewcontroller -> ~||~ -> SocketViewController -> simulator -> world ->actor.
+
+
+#VC ->rawinput -> Event ->simulator.
+# simulator only accepts Event
+# VC only returns rawinput(impossible)
+
+#or simulator holds GameMaster, parse player, parse rawinput, parse XY?
+#or VC has Gamemaster, do all and send to sim pared event.(current)
+
+class GameMaster:
+    def __init__(self, max_player=4):
+        self.max_player = max_player
+        self.players = {}
+
+    def add_player(self,player):
+        if len(self.players)<self.max_player:
+            self.players[player_id] = player
+
+def player_to_actor(player_id):
+    player_id
 
 
 
+#simulator.put(event)
 
-import event
+#import event #now sim has no rel.with sim!
 
 from queuerecv import QueueRecv,QueueRecvClient, Sender, Caster
 
-class SocketViewer:
-    def __init__(self):
-        self.queue = QueueRecv(verbose=True)
-        self.caster = Caster(verbose=True)
+
+class SocketViewController(IViewControl):
+    def __init__(self, inport=30020, outport=30021):
+        self.queue = QueueRecv(port = inport, verbose=True)
+        self.caster = Caster(port = outport, verbose=True)
     #===api
     def get_inputs(self):
-        """here gets raw dict data. which shall be Event class.."""
-        for i in self.queue.get_all():
-            events = event.parse(i)
-            yield from events
-    def draw(self,draws):
-        self.caster.cast(draws)
+        "raw_input/eventdict -> [Event]"
+        return [i for i in self.queue.get_all()]#now viewController outs rawinput/eventdict.
+        #events = event.parse(i)
+        #yield from events
+    def draw(self,draws):#and events.
+        real_draws = draws.get('draws')
+        self.caster.cast(real_draws)
 
 class SocketSimulator(Simulator):
     def __init__(self):
-        view_control = SocketViewer()
+        view_control = SocketViewController()
         super().__init__(view_control)
+
+
 
 
 def socketsimultaing():
 
-    a = SocketSimulator()
+    sim = SocketSimulator()
     world = World()
-    world.add(1)
-    a.run(world)
+    actor = Actor()
+    world.add(actor)
+
+    sim.run(world)
 
     time.sleep(2)
-    #a.pause()
+    sim.pause()
+
 
 
 
@@ -157,7 +182,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
 
@@ -214,9 +238,30 @@ if __name__ == '__main__':
 
 def run_fps_test():
 
+    class World:
+        def __init__(self):
+            self.actors = []
+        def add(self,actor):
+            self.actors.append(actor)
+        #===api
+        def input(self,Event):
+            print(' input-> world ', Event)
+        def update(self,dt):
+            self.actors.append(2)
+        def get_draw(self):
+            return self.actors
+
+
+    class ViewControl:
+        #===api
+        def get_inputs(self):
+            return []
+        def draw(self,draws):
+            print(len(draws) )
+
     
 
-    v = Viewer()
+    v = ViewControl()
 
     #print(help(Simulator))
     world = World()

@@ -1,16 +1,21 @@
 
 
 class Event:
+    __slots__ = ['player','world','target']
+    def __init__(self, player=None, world=None, target=None):
+        self.player = player
+        self.world = world
+        self.target = target
+    
     def __repr__(self):
         clsname = self.__class__.__name__        
-        
         attrs = {}
-        attrnames = [i for i in dir(self) if '__' not in i]
-        for attr in attrnames:
+        attrnames = [i for i in dir(self) if '__' not in i]        
+        for attr in attrnames:            
             value = getattr(self,attr)
             attrs[attr] = value
-
         return f"Event {clsname}: {attrs}"
+
 
 class Lambda(Event):
     def __init__(self, *data):
@@ -19,13 +24,16 @@ class Lambda(Event):
 class Key(Event):
     """Key means, Generalized Key Input! """
     __slots__ = ['key','value','time']
-    def __init__(self, key,value,time=None):
+    #def __init__(self, key,value, time=None,  player=None, target=None, world=None):
+    def __init__(self, key,value, time=None, **kwargs):#kwargs for Event class(freq.changed maybe)
         self.key = key
         self.value = value
         self.time = time#good for debug
+        Event.__init__(self, **kwargs)
 
 
-
+#e = Key('k',1.0, world=55)
+#print(e)
 
 
 #=======================
@@ -34,6 +42,8 @@ _VARS = vars()
 
 def parse(_clsname_datalist) -> list:
     """returns events. Key ***XY -> [***X,***Y] """
+    if isinstance(_clsname_datalist,Event):
+        return [_clsname_datalist]
     events = []
     for class_name, value_packed in _clsname_datalist.items():
         class_found = _VARS.get(class_name, Lambda)
