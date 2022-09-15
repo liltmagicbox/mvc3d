@@ -15,8 +15,8 @@ class IWorld(ABC):
     def update(self,dt):
         self.actors.append(2)
     @abstractmethod
-    def output(self):
-        "world -> {Event, draws}"
+    def draw(self):
+        "world -> {draws,Event} -basically draw"
         
 class GameMaster:
     @abstractmethod

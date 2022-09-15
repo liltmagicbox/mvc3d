@@ -63,7 +63,7 @@ class Simulator(ISimulator):
                     world.update(dt)
 
                 #=draw
-                draws = world.output()
+                draws = world.draw()
                 self.view_control.draw(draws)#view_control now another role: event to outer world!
                 #lets keep it simple.
                 #draw_and_events = world.output()
@@ -164,6 +164,7 @@ def socketsimultaing():
     world = World()
     actor = Actor()
     world.add(actor)
+    world.default_player.target = actor
 
     sim.run(world)
 

@@ -21,34 +21,43 @@ class Lambda(Event):
     def __init__(self, *data):
         self.data = data
 
+#from Controller dict, 'key':['key',value, 'player',time]
 class Key(Event):
     """Key means, Generalized Key Input! """
     __slots__ = ['key','value','time']
     #def __init__(self, key,value, time=None,  player=None, target=None, world=None):
-    def __init__(self, key,value, time=None, **kwargs):#kwargs for Event class(freq.changed maybe)
+    def __init__(self, key,value, player=None, time=None, **kwargs):#kwargs for Event class(freq.changed maybe)
         self.key = key
         self.value = value
         self.time = time#good for debug
-        Event.__init__(self, **kwargs)
+        Event.__init__(self, **kwargs)        
+        self.player = player#finally! after Event.
 
 
-#e = Key('k',1.0, world=55)
-#print(e)
+def _keymaketset():
+    e = Key('k',1.0, 'player1', '12:05' )
+    print(' keymake test',e)
+    e = Key('k',1.0, world=55)
+    print(' keymake test',e)
+
 
 
 #=======================
 #let Events not cross this line.
 _VARS = vars()
 
-def parse(_clsname_datalist) -> list:
+def parse(clsname_datalist) -> list:
     """returns events. Key ***XY -> [***X,***Y] """
-    if isinstance(_clsname_datalist,Event):
-        return [_clsname_datalist]
+    if isinstance(clsname_datalist,Event):
+        return [clsname_datalist]
     events = []
-    for class_name, value_packed in _clsname_datalist.items():
+    for class_name, value_packed in clsname_datalist.items():
         class_found = _VARS.get(class_name, Lambda)
 
-        event =class_found(*value_packed)
+        if isinstance(value_packed,dict):
+            event =class_found(**value_packed)
+        else:
+            event =class_found(*value_packed)
         events.append(event)
         #===keyinput xy parse
         if class_found == Key:
@@ -74,6 +83,11 @@ def _parse_axis(event):
 
 #=======================
 
+def _keyparsetest():
+    es = parse(  { 'Key': ['k', 1.0, 'ttt'] } )
+    print(' ham', es)
+    es = parse(  { 'Key': {'key':'k', 'value':1.0, 'world':'wow'} } )
+    print(' ham', es)
 
 
 

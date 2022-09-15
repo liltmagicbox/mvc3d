@@ -59,7 +59,7 @@ def recv_loads(sock, verbose = False):
         print('recv target disconnected..') if verbose else 1        
         return None
     except json.decoder.JSONDecodeError:#print(strdata,'what')#["hello"]["hello"]
-        print('json decode fail') if verbose else 1
+        print('json decode fail, data:',strdata) if verbose else 1
         return {}
         #raise TypeError
 
