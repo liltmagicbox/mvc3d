@@ -61,7 +61,8 @@ class VAO:
         self.VBO = VBO
         self.EBO = EBO
         self.points = len(indices)
-    def draw(self):        
+    def bind(self):
         glBindVertexArray(self.VAO)
+    def draw(self):        
         glDrawElements(GL_TRIANGLES, self.points, GL_UNSIGNED_INT, None)
 

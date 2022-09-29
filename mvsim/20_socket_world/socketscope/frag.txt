@@ -1,0 +1,13 @@
+#version 410 core
+
+in vec2 uv_out;
+out vec4 FragColor;
+
+uniform sampler2D tex0;
+uniform sampler2D tex1;
+
+void main()
+{
+    //FragColor = vec4(1,0,1,1);
+    FragColor = texture2D(tex0, uv_out);
+}

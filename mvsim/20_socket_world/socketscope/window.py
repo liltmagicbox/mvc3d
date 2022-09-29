@@ -55,7 +55,7 @@ class Window:
         self.size = size
         
         self._input_queue = Queue()
-        self.mouse_xy = 0
+        self.mouse_xy = (0,0)
         self._bind()
 
         self.view_model = {}
@@ -208,29 +208,6 @@ class Window:
 # vao_indices = np.array([0,1,2,0,2,3,]).astype('uint')
 
 
-class Material:
-    def __init__(self, shader,textureDict):
-        self.shader = shader
-        self.textureDict = textureDict
-    def bind(self):
-        self.shader.bind()
-    def set_vp(self, vpmat):
-        self.shader.set_mat4('ViewProjection', vpmat)
-    def set_model(self, modelmat):
-        self.shader.set_mat4('Model', modelmat)
-
-#s = Shader()
-#a = Material()
-
-
-class Geometry:
-    def __init__(self):
-        self.vao = vao
-    def draw(self):
-        self.vao.bind()
-        self.vao.draw()
-
-
 
 
 
@@ -281,47 +258,187 @@ void main()
     FragColor = texture2D(tex0, uv_out);
 }
 """
+
+
+class Countess:
+    _counter = 0
+    @classmethod
+    def _namefit(cls,name):
+        clsname = cls.__name__
+        cls._counter+=1
+        if not name:
+            name = f"{clsname}_{cls._counter}"
+        return name
+
+
+
+import os
+
+
+
 from shader import Shader
 from texture import Texture
+class Material(Countess):
+    """vertn,fragn filedir or string.
+    texture_dict = {'diffuse':'diffuse.png','normal':'normal_ver4.png'}
+    """
+    def __init__(self, vertn,fragn, texture_dict, name=None):
+        vertn,fragn = self._is_shader_path(vertn,fragn)
+        shader = Shader(vertn,fragn)
+
+        texdict = {}
+        for channel,fdir in texture_dict.items():
+            texdict[channel] = Texture(fdir)
+        
+        self.shader = shader
+        self.textureDict = texdict
+        self.name = self._namefit(name)
+
+    def bind(self):
+        self.shader.bind()
+        for texture in self.textureDict.values():
+            texture.bind()
+    def set_vpmat(self, vpmat):
+        self.shader.set_mat4('ViewProjection', vpmat)
+    def set_modelmat(self, modelmat):
+        self.shader.set_mat4('Model', modelmat)
+
+    #===
+    @staticmethod
+    def _is_shader_path(vertn,fragn):
+        if os.path.exists(vertn):
+            with open(vertn, 'r', encoding='utf-8') as f:
+                vertn = f.read()
+        if os.path.exists(fragn):
+            with open(fragn, 'r', encoding='utf-8') as f:
+                fragn = f.read()    
+        return vertn,fragn
+
 from vao import VAO
+class Geometry(Countess):
+    def __init__(self, attr_dict, indices, name=None):
+        vao = VAO(attr_dict, indices)
+        self.vao = vao
+        self.name = self._namefit(name)
+    def bind(self):
+        self.vao.bind()
+    def draw(self):
+        self.vao.draw()
 
-import numpy as np
-#modelmat = np.array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]).astype('float32')
-modelmat = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
+class Mesh(Countess):
+    def __init__(self, geo,mat, name=None):
+        self.geo = geo
+        self.mat = mat
+        self.name = self._namefit(name)
 
-#modelmat[3]=0.5
-modelmat[12]=0.2
-modelmat[13]=0.2
-modelmat[14]=0.2
-#modelmat[7]=0
-#modelmat[11]=0
 
-s = Shader(vertn,fragn)
-s.bind()
-s.set_mat4('Model',modelmat)
 
-t = Texture('frz.png')
+class AssetManager:
+    def __init__(self):
+        self.geoDict = {}
+        self.matDict = {}
+        self.meshDict = {}
+        #==========add defaults
+        #vertn,fragn = 'vert.txt','frag.txt'
+        texdict = {'diffuse':'frz.png'}
+        mat = Material(vertn,fragn, texdict, name='default')
+        #self.add_mat(mat)
+        
+        vao_attrs={    'position' : [ 0,0,0, 1,0,0, 1,1,0, 0,1,0,],
+                        'uv' : [ 0,0,  1,0,  1,1,  0,1 ],    }
+        vao_indices = [0,1,2,0,2,3,]
+        geo = Geometry(vao_attrs,vao_indices, name='default')
+        #self.add_geo(geo)
+        
+        mesh = Mesh(geo,mat, name='default')
+        self.add_mesh(mesh)
 
-vao_attrs={
-    'position' : [ 0,0,0, 1,0,0, 1,1,0, 0,1,0,],
-    'uv' : [ 0,0,  1,0,  1,1,  0,1 ],
-    }
-vao_indices = [0,1,2,0,2,3,]
+    def get_geo(self, name):
+        return self.geoDict.get(name, self.geoDict['default'] )
+    def get_mat(self, name):
+        return self.matDict.get(name, self.matDict['default'] )
+    def get_mesh(self, name):
+        return self.meshDict.get(name, self.meshDict['default'] )
+    
+    def add_geo(self, asset):
+        self.geoDict[asset.name] = asset
+    def add_mat(self, asset):
+        self.matDict[asset.name] = asset
+    def add_mesh(self, asset):
+        """adds mesh.geo ,mesh.mat"""
+        self.meshDict[asset.name] = asset
+        self.add_geo(asset.geo)
+        self.add_mat(asset.mat)
 
-vao = VAO(vao_attrs,vao_indices)
+
+    #===============
+    def load(self, fdir):
+        1
+
+def asset_load(directory):
+    for file in os.listdir(directory):
+        3
+
+# # gltf, obj, tttp.
+# -box
+#  -box.obj
+#  -box.mtl
+#  -box_diffuse.png#orwhatever
+# #tttf is..
+# -box
+#  -box_attr.txt -json style dict.
+#  -box_vert.txt
+#  -box_frag.txt
+#  -box_diffuse.png
+# box_ is ignored. optional. path rules first.
+
+
+assman = AssetManager()
+
+#def_material = assman.get_mat('default')
+#def_geometry = assman.get_geo('default')
+#mat,geo = def_material,def_geometry
+
+class Actor:
+    def __init__(self, id, pos,rot,scale, mesh):
+        self.id = id
+        self.pos = pos
+        self.rot = rot
+        self.scale = scale
+        self.mesh = mesh
+    def get_modelmat(self):
+        X,Y,Z = self.pos
+        modelmat = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
+        modelmat[12] = X
+        modelmat[13] = Y
+        modelmat[14] = Z
+        #or 3,7,11
+        return modelmat
 
 def testdraw(self):
-    view_model = {5595: {'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'} }
-    for actorid, actor in view_model.items():
-        pos = actor['pos']
-        rot = actor['rot']
-        scale = actor['scale']
-        mesh = actor['mesh']
+    #ddict = {'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
+    ddict = {'id':5595, 'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
+    aa = Actor( **ddict)
+    actors = [aa]
+    for actor in actors:
 
         #geo,mat = self.asset.get(mesh, self.asset['default'] )
-        #print(self.mouse_xy)
-        vao.draw()
+        x,y = self.mouse_xy
+        print(x,y)
+        X,Y = 2*x-1, 1-y*2
+        actor.pos = (X,Y,0)
+        modelmat = actor.get_modelmat()
+        mesh = assman.get_mesh(actor.mesh)
 
+        #========internal draw seq.
+        mat,geo = mesh.mat,mesh.geo
+        mat.bind()
+        mat.set_modelmat(modelmat)
+        
+        geo.bind()
+        geo.draw()
+
+        #below acomplished!
         #mat.bind()
         #mat.set_vp(vpmat)
         #mat.set_model(modelmat)        
