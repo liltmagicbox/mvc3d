@@ -40,5 +40,5 @@ class Shader:
     def set_mat4(self, uniform_name, mat):
         """we need bind the shader first!"""
         loc = self.get_loc(uniform_name)
-        glUniformMatrix4fv(loc,1,False, mat)# True for row major..[1,2,3,4, ,]
+        glUniformMatrix4fv(loc,1,GL_FALSE, mat)# True for row major..[1,2,3,4, ,]
         #location count transpose data(nparr)

@@ -5,23 +5,7 @@ from queue import Queue
 from time import perf_counter
 
 from asset import AssetManager
-
-class Actor:
-    def __init__(self, id, pos,rot,scale, mesh='default'):
-        self.id = id
-        self.pos = pos
-        self.rot = rot
-        self.scale = scale
-        self.mesh = mesh
-    def get_modelmat(self):
-        X,Y,Z = self.pos
-        modelmat = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
-        modelmat[12] = X
-        modelmat[13] = Y
-        modelmat[14] = Z
-        #or 3,7,11
-        return modelmat
-
+from actorcamera import Camera,Actor
 
 class Window:
     def __init__(self, size=(640,480), name = 'a window', vsync = True, for_rpi = False ):
@@ -40,14 +24,17 @@ class Window:
         self.size = size
         
         self._input_queue = Queue()
-        self.mouse_xy = (0,0)
+        self._mouse_lock = False
+        self.mouse_xy_before = self.mouse_xy
         self._bind()
+        self.camera = Camera(ratio = w/h)
 
         ddict = {'id':5595, 'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
         aa = Actor( **ddict)
         self.scene = [aa]
         self.asset = AssetManager()
 
+    
     def _bind(self):        
         def key_callback(window, key, scancode, action, mods):
             #if (key == GLFW_KEY_SPACE and action == GLFW_PRESS):
@@ -58,16 +45,22 @@ class Window:
             value = int(action)
             data = {'key':abskey, 'value':value, 'player':737}
             self._input_queue.put(data)
-        
-        def cursor_pos_callback(window, xpos,ypos):
-            #https://www.glfw.org/docs/3.3/input_guide.html#events
-            W,H = self.size
-            mx = xpos/W
-            my = ypos/H
-            self.mouse_xy = (mx,my)
         glfwSetKeyCallback(self.window, key_callback)
-        glfwSetCursorPosCallback(self.window, cursor_pos_callback)
+        
+        # def cursor_pos_callback(window, xpos,ypos):
+        #     #https://www.glfw.org/docs/3.3/input_guide.html#events
+        #     W,H = self.size
+        #     mx = xpos/W
+        #     my = ypos/H
+        #     self.mouse_xy = (mx,my)
+        # glfwSetCursorPosCallback(self.window, cursor_pos_callback)
 
+        #==============
+        def fb_size_callback(window, width, height):
+            self.size = width,height
+            glViewport(0, 0, width, height)#need context?
+            self.camera.ratio = width/height
+        glfwSetFramebufferSizeCallback(self.window, fb_size_callback)        
 
         def errorCallback(errcode, errdesc):
             print('ERR',errcode, errdesc)
@@ -106,8 +99,20 @@ class Window:
         [print(i) for i in inputs ]
         #simulator.input(inputs)
         [glfwSetWindowShouldClose(self.window,True) for i in inputs if i['key']==256]
+        for i in inputs:
+            if i['key']=='D':
+                self.camera.pos.x+=0.1
+            if i['key']=='A':
+                self.camera.pos.x-=0.1
+
         
     def update(self,dt):
+        x,y = self.mouse_xy
+        xx,yy = self.mouse_xy_before
+        dx,dy = x-xx, y-yy
+        self.camera.rotate_dxdy(dx,dy)
+        self.mouse_xy_before = x,y
+
         print(dt)
         1#simulator.tick(dt)
         view_update_data = {
@@ -130,21 +135,49 @@ class Window:
 
         #===behold and see!
         #ddict = {'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
+        x,y = self.mouse_xy
+        print(x,y)
+
+        X,Y = 2*x-1, 2*y-1
+
+        vpmat = self.camera.get_vpmat()      
+
         for actor in self.scene:
-            x,y = self.mouse_xy
-            print(x,y)
-            X,Y = 2*x-1, 1-y*2
-            actor.pos = (X,Y,0)
+            #actor.pos = (X,Y,0)
             modelmat = actor.get_modelmat()
             mesh = self.asset.get_mesh(actor.mesh)
             mat,geo = mesh.mat,mesh.geo
 
             #========internal draw seq.
             mat.bind()
+            mat.set_vpmat(vpmat)
             mat.set_modelmat(modelmat)
             
             geo.bind()
             geo.draw()
+    #===========================
+    @property
+    def mouse_xy(self):
+        xpos,ypos = glfwGetCursorPos(self.window)
+        W,H = self.size
+        mx = xpos/W
+        my = -ypos/H# 0bottom 1top
+        return mx,my
+    
+    @property
+    def mouse_lock(self):
+        return self._mouse_lock
+    @mouse_lock.setter
+    def mouse_lock(self, value):
+        if value == True:
+            glfwSetInputMode(self.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED)
+            #if glfwRawMouseMotionSupported():
+                #glfwSetInputMode(self.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE)
+            #disables acc , seems weird! but accu acc.
+        else:
+            glfwSetInputMode(self.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL)            
+        self._mouse_lock = value
+    
 
 
 
@@ -179,10 +212,13 @@ def _pre_window_init(for_rpi ):
     #glfwWindowHint(GLFW_DECORATED , GLFW_FALSE)#cool! no frame!
     
     #glfwWindowHint(GLFW_SAMPLES,4)#MSAA works fine. without glEnable(GL_MULTISAMPLE).
+    
+
 
 
 
 window = Window()
+window.mouse_lock=True
 window.run()
 
 

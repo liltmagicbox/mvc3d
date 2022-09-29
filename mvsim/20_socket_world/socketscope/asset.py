@@ -88,7 +88,7 @@ uniform mat4 ViewProjection;
 void main() 
 {
     //gl_Position = vec4( pos, 1);
-    gl_Position = Model * vec4(pos,1);
+    gl_Position = ViewProjection * Model * vec4(pos,1);
     uv_out = uv;
 }
 """
