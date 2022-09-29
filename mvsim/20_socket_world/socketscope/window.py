@@ -58,10 +58,10 @@ class Window:
         self.mouse_xy = (0,0)
         self._bind()
 
-        self.view_model = {}
-        self.asset = {
-            'default' : 1
-        }
+        ddict = {'id':5595, 'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
+        aa = Actor( **ddict)
+        self.scene = [aa]
+        self.asset = AssetManager()
 
     def _bind(self):        
         def key_callback(window, key, scancode, action, mods):
@@ -111,7 +111,7 @@ class Window:
             time_0 = time_1
             self.update(dt)
             #===draw
-            self.draw(self)
+            self.draw()
 
             glfwSwapBuffers(window)
             #glfwWaitEventsTimeout(5)
@@ -132,6 +132,7 @@ class Window:
         #[5549,0,0,0,0,0,0,1,1,1]#fast byte data. json byte overhead! bytes= 32*10. 320B.. or 32*7,usually.
         #however, 12345, 1.2345 5.6789 9.1234 , 20B.,.not!
         #BBBBB BBBBB BBBBB VS BBBB BBBB BBBB ..32bit wins. ..never mind.
+    
     def draw(self):
         #===update view_model.
         #vc = simulator.get_view_command()
@@ -142,85 +143,41 @@ class Window:
         #for vid, data in view_model.items():
         #    pos = data['pos']
 
-    def _draw(self):
-        # ue4, we have assets, and actors. we need both.
-        # js, we have somewhere loaded mat,geo. and Mesh. and Mesh is actor, created.
-        #js store geo,mat. -> Mesh(Actor)
-        #ue4 geo,mat,Mesh(Actor) -> Mesh_created.
-        #objloader -> object
-        self.view_model
-        self.asset
-        #object.copy
-        #getObjectByName getObjectById
-        #1.load a model = object = StaticMeshActor
-        #2.copy-clone-instance to the world.
-        #3. change mat or copy ->mat2, change and assign.
+        #===behold and see!
+        #ddict = {'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
+        for actor in self.scene:
+            x,y = self.mouse_xy
+            print(x,y)
+            X,Y = 2*x-1, 1-y*2
+            actor.pos = (X,Y,0)
+            modelmat = actor.get_modelmat()
+            mesh = self.asset.get_mesh(actor.mesh)
+            mat,geo = mesh.mat,mesh.geo
+
+            #========internal draw seq.
+            mat.bind()
+            mat.set_modelmat(modelmat)
+            
+            geo.bind()
+            geo.draw()
 
 
 
 
 
-
-
-
-#from OpenGL.GL import *
-#from OpenGL.GL import shaders
-#vshader = shaders.compileShader( vertn, GL_VERTEX_SHADER)
-#fshader = shaders.compileShader( fragn, GL_FRAGMENT_SHADER)
-#default_shader = shaders.compileProgram( vshader,fshader)
-
-
-#shader -> vao ->
-# mat -> geo.
-
-#Scene
-#Object
-
-        
-# Material()
-# Shader()
-# Texture()
-
-# Geometry()
-# VAO()
-
-# Object3D
-# Scene
-
-
-# mat.bind()
-
-# viewprojection = camera.get_view_projection()
-# mat.set_VP(viewprojection)
-
-# modelmat = object3d.get_model()
-# mat.set_M(modelmat)
-
-# geo.draw()
-
-#class Shader:
-#class VAO:
-
-# vao_attrs={
-#     'position' : np.array([ 0,0,0, 1,0,0, 1,1,0, 0,1,0,]).astype('float32'),
-#     'uv' : np.array([ 0,0,  1,0,  1,1,  0,1 ]).astype('float32'),
-#     }
-# vao_indices = np.array([0,1,2,0,2,3,]).astype('uint')
-
-
-
-
-
-
-
-
-
-
-
-
-window = Window()
-#window.keyinput = lambda key:print('key',key)
-
+def _draw(self):
+    1
+    # ue4, we have assets, and actors. we need both.
+    # js, we have somewhere loaded mat,geo. and Mesh. and Mesh is actor, created.
+    #js store geo,mat. -> Mesh(Actor)
+    #ue4 geo,mat,Mesh(Actor) -> Mesh_created.
+    #objloader -> object
+    
+    #object.copy
+    #getObjectByName getObjectById
+    #1.load a model = object = StaticMeshActor
+    #2.copy-clone-instance to the world.
+    #3. change mat or copy ->mat2, change and assign.
 
 
 
@@ -393,14 +350,13 @@ def asset_load(directory):
 # box_ is ignored. optional. path rules first.
 
 
-assman = AssetManager()
 
 #def_material = assman.get_mat('default')
 #def_geometry = assman.get_geo('default')
 #mat,geo = def_material,def_geometry
 
 class Actor:
-    def __init__(self, id, pos,rot,scale, mesh):
+    def __init__(self, id, pos,rot,scale, mesh='default'):
         self.id = id
         self.pos = pos
         self.rot = rot
@@ -415,36 +371,7 @@ class Actor:
         #or 3,7,11
         return modelmat
 
-def testdraw(self):
-    #ddict = {'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
-    ddict = {'id':5595, 'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
-    aa = Actor( **ddict)
-    actors = [aa]
-    for actor in actors:
-
-        #geo,mat = self.asset.get(mesh, self.asset['default'] )
-        x,y = self.mouse_xy
-        print(x,y)
-        X,Y = 2*x-1, 1-y*2
-        actor.pos = (X,Y,0)
-        modelmat = actor.get_modelmat()
-        mesh = assman.get_mesh(actor.mesh)
-
-        #========internal draw seq.
-        mat,geo = mesh.mat,mesh.geo
-        mat.bind()
-        mat.set_modelmat(modelmat)
-        
-        geo.bind()
-        geo.draw()
-
-        #below acomplished!
-        #mat.bind()
-        #mat.set_vp(vpmat)
-        #mat.set_model(modelmat)        
-        #geo.draw()
-
-window.draw = testdraw
+window = Window()
 window.run()
 
 
