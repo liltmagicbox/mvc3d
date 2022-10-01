@@ -1,20 +1,23 @@
 import math
-from pymatvec import mlookat, Vec3, mperspective, mul4x4,  translate,scale,rotate
+from pymatvec import mlookat, Vec3, mperspective, mul4x4, mrotmat, mtranslate,mscale
 
 
 class Actor:
     def __init__(self, id, pos,rot,scale, mesh='default'):
         self.id = id
-        self.pos = pos
-        self.rot = rot
-        self.scale = scale
+        self.pos = Vec3(*pos)
+        self.rot = Vec3(*rot)
+        self.scale = Vec3(*scale)
         self.mesh = mesh
     def get_modelmat(self):
         #https://en.wikipedia.org/wiki/Rotation_matrix
-
+        X,Y,Z = self.rot
+        modelmat = mrotmat(X,Y,Z)
         X,Y,Z = self.pos
-        modelmat = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
-        translate(modelmat, X,Y,Z)
+        #modelmat = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
+        mtranslate(modelmat, X,Y,Z)
+        X,Y,Z = self.scale
+        mscale(modelmat, X,Y,Z)
         return modelmat
 
 
@@ -30,13 +33,18 @@ class Camera:
 
         self.sensitivity = 1
 
-        self.pos = Vec3(0,0,2)#little back from screen
-        self.front = Vec3(0,0,-1)#toward screen
-        self.up = Vec3(0,1,0)#usually always up.
-        #self.front = Vec3(0,0,-1)
-        #self.yaw = -90# means LH, ..fine.
-        self.yaw = math.degrees(math.asin(self.front.z))
-        self.pitch = 0
+        self._pos = Vec3(0,0,2)#little back from screen
+        self._front = Vec3(0,0,-1)#toward screen
+        self._up = Vec3(0,1,0)#usually always up.
+        self._yaw = -1.57# means LH, ..fine. zaxis rot.
+        self._pitch = 0
+
+    @property
+    def pos(self):
+        return self._pos
+    @pos.setter
+    def pos(self,value):
+        self._pos.set(*value)
 
     def get_promat(self):
         #[1,2,3,4,
@@ -46,9 +54,9 @@ class Camera:
     
     def get_viewmat(self):
         #viewmat = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-2,1]#when VP, cam pos shall be z=2 , backstep.
-        eye = self.pos
-        target = self.pos+self.front
-        upV = self.up
+        eye = self._pos
+        target = self._pos+self._front
+        upV = self._up
         viewmat = mlookat(eye,target,upV)
         return viewmat
 
@@ -64,20 +72,35 @@ class Camera:
 
     def rotate_dxdy(self, dx,dy):
         #yaw LH rule, but works as we expect. use front, not yaw directly.
-        self.yaw += dx*self.sensitivity*100
-        self.pitch += dy*self.sensitivity*100
-        self.pitch = clamp(self.pitch,-89,89)
+        yaw = self._yaw + dx*self.sensitivity
+        pitch = self._pitch + dy*self.sensitivity
+        pitch = clamp(pitch,-1.57,1.57)#-89,89
 
-        pitch = self.pitch
-        yaw = self.yaw
         #----------- fpscam, by yaw & pitch.
         #---note we do not use up-vector. it's just done by yaw,pitch.
         #since in view mat: target = cam.pos+cam.front
-        x = math.cos(math.radians(yaw)) * math.cos(math.radians(pitch))
-        y = math.sin(math.radians(pitch))
-        z = math.sin(math.radians(yaw)) * math.cos(math.radians(pitch)) 
-        self.front = Vec3(x,y,z).normalize()
-        #ssems normalized but do again.. ...sin-cos never over 1.0.?
+        x = math.cos(yaw) * math.cos(pitch)
+        y = math.sin(pitch)
+        z = math.sin(yaw) * math.cos(pitch)
+        self._front = Vec3(x,y,z).normalize()
+        self._yaw = yaw
+        self._pitch = pitch
+
+    def lookat(self, target):
+        """is too hard. we need rotation by vector!"""
+        front = (-self.pos + target).normalize()
+        self._yaw = math.asin(z)-1.57#math.asin(self._front.z)#z=-1,-90. ->rad.
+        self._pitch = math.asin(y)
+        # facing = self.target.pos - self.pos
+        # d = vdir(front)
+        # m = mrotv(front,facing,dt*1)
+        # new_front = normalize(d@m)
+
+        #axis,rot = rotv(front,target)
+        #self.front = rotv(axis,rot,[1,0,0])        
+
+
+
 if __name__ == '__main__':
     Camera()
     #main()

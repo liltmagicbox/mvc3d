@@ -1,7 +1,7 @@
 from OpenGL.GL import *
 
 from PIL import Image
-
+#https://learnopengl.com/Getting-started/Textures
 class Texture:
     def __init__(self, fdir):
         texture = glGenTextures(1)
@@ -16,6 +16,7 @@ class Texture:
         # load image, create texture and generate mipmaps
         try:
             img = Image.open(fdir)
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
 
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.width, img.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img.tobytes())
             glGenerateMipmap(GL_TEXTURE_2D)
@@ -27,3 +28,6 @@ class Texture:
     
     def bind(self):
         glBindTexture(GL_TEXTURE_2D, self.texture)
+
+#update texture
+#live stream texture.

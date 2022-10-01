@@ -9,17 +9,7 @@ def eye4():
     mat[15]=1.0 #33
     return mat
 
-def translate(mat,x,y,z):
-    mat[12] += x
-    mat[13] += y
-    mat[14] += z
-    return mat
 
-def scale(mat,x,y,z):
-    mat[0] *= x
-    mat[5] *= y
-    mat[10] *= z
-    return mat
 
 def rotate_x(mat,th):
     th = radians(th)
@@ -66,10 +56,30 @@ def rotate_z(x,y,z,rad):
     Z = z
     return X,Y,Z
 
-def rotate(x,y,z):
-    1
-    #yaw(z) pitch(y) roll(x)
-    #see npmat quatel kinds.
+
+def mrotmat(x,y,z):
+    """rotate by gloval axis. yup.
+    yaw(z) pitch(y) roll(x) 1,2,3,4->"""
+    Ca = cos(x)
+    Sa = sin(x)
+    Cb = cos(y)
+    Sb = sin(y)
+    Cr = cos(z)
+    Sr = sin(z)
+    rotmat = [Cb*Cr, Sa*Sb*Cr-Ca*Sr, Ca*Sb*Cr+Sa*Sr, 0.0,
+    Cb*Sr, Sa*Sb*Sr+Ca*Cr, Ca*Sb*Sr-Sa*Cr, 0.0,
+    -Sb, Sa*Cb, Ca*Cb, 0.0,
+    0.0,0.0,0.0,1.0]
+    return rotmat
+
+def mtranslate(mat,x,y,z):
+    mat[12] += x
+    mat[13] += y
+    mat[14] += z
+def mscale(mat,x,y,z):
+    mat[0] *= x
+    mat[5] *= y
+    mat[10] *= z
 
 #seems it WAS colmajor.
 def mortho(left, right, bottom, top, near, far):

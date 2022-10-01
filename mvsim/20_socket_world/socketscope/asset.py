@@ -1,9 +1,11 @@
+from objman import get_meshes
 
-
-
-
-
-
+def main():
+    from window import Window
+    w = Window()
+    AssetManager().load_obj('yup/objobjects.obj')    
+    #AssetManager().load_obj('warhawk/s-13_warhawk.obj')
+    #w.run()
 
 class Countess:
     _counter = 0
@@ -72,7 +74,6 @@ class Mesh(Countess):
         self.mat = mat
         self.name = self._namefit(name)
 
-
 #=====================================
 
 vertn = """
@@ -109,7 +110,116 @@ void main()
 }
 """
 
+
+def _get_numname(name):
+    ddd = name.rfind('_')
+    if ddd == -1:
+        return name+'_1'
+    namesplit = name[:ddd]
+    isnum = name[ddd+1:]
+    if not isnum.isnumeric():
+        return name+'_1'    
+    return namesplit + str(int(isnum)+1)
+
 class AssetManager:
+    def __init__(self):
+        self.meshDict = {}
+        #self.drawmeshDict = {}
+        #==========add defaults
+        #vertn,fragn = 'vert.txt','frag.txt'
+        texdict = {'diffuse':'frz.png'}
+        mat = Material(vertn,fragn, texdict, name='default')
+        #self.add_mat(mat)
+        
+        vao_attrs={    'position' : [ 0,0,0, 1,0,0, 1,1,0, 0,1,0,],
+                        'uv' : [ 0,0,  1,0,  1,1,  0,1 ],    }
+        vao_indices = [0,1,2,0,2,3,]
+        geo = Geometry(vao_attrs,vao_indices, name='default')
+        #self.add_geo(geo)
+        
+        mesh = Mesh(geo,mat, name='default')        
+        self.add_mesh(mesh)
+        #self.add_drawmesh('default', [mesh])
+
+    def names(self):
+        return list(self.meshDict.keys())
+    def get_mesh(self, name):
+        return self.meshDict.get(name, self.meshDict['default'] )
+    def add_mesh(self,mesh):
+        self.meshDict[mesh.name] = mesh
+    
+    # def get_drawmesh(self, name):
+    #     return self.drawmeshDict.get(name, self.drawmeshDict['default'] )
+    # def add_drawmesh(self, drawname, meshes):
+    #     """adds mesh.geo ,mesh.mat"""        
+    #     self.drawmeshDict[drawname] = meshes
+    #===============
+    def load_obj(self, fdir):
+        meshes_for_actor = {}
+        
+        meshes = get_meshes(fdir)
+        for mesh_dict in meshes:#this will break hat and body..
+            fdir_obj = mesh_dict['obj']
+            fdir_mtl = mesh_dict['mtl']
+            name = mesh_dict.get('name', os.path.splitext( os.path.split(fdir)[1] )[0] )
+            meshes_for_actor[name] = []
+            #===name shall be 1. Mesh is draw object, not actor.            
+            
+            #print(mesh.keys())dict_keys(['obj', 'mtl', 'name', 'meshes'])
+            #name rule: 1.each internal 2.out_internal 3.out_N ..lets 2. internal name is! filename can be changed!
+
+            #print(mesh_dict['meshes'][0].keys())#(['material', 'smoothing', 'vert_dict', 'indices'])            
+            for mdict in mesh_dict['meshes']:
+                vert_dict = mdict['vert_dict']
+                indices = mdict['indices']
+                geo = Geometry(vert_dict,indices)
+
+                material = mdict['material']
+                smoothing = mdict.get('smoothing')
+                #vertn, fragn = ('ha','ba')#mtl
+                mat = Material(vertn, fragn, {'diffuse':'yup/boximg.png'})            
+            
+                #only mesh survives,from now. geo,mat is bound. both devliers abstract interface.
+                mesh = Mesh(geo,mat, name=name)
+                mesh.fdir_obj = fdir_obj
+                mesh.fdir_mtl = fdir_mtl
+
+                while mesh.name in self.meshDict:
+                    mesh.name = _get_numname(mesh.name)
+                self.add_mesh(mesh)
+                #meshes_for_actor[name].append(mesh)
+            #self.add_drawmesh(name, meshes_for_actor[name])
+        return list(meshes_for_actor.keys())
+        
+        # gltf wins all. not do too much! since gltf can screen-capture. obj lost vertex origin,rot axis!
+        #lets obj just single loader, spread by origin.
+        # structure = {
+        #     'Cube': [(geo,mat),(geo2,mat2)] ,
+        #     'isopod':[geo3,mat3],
+        # }
+#meshactor=object -mesh(geo,mat).fine.! same structure blender.
+
+
+
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
+
+from objloadtest import ma
+
+def xxasset_load(directory):
+    for file in os.listdir(directory):
+        3
+
+
+
+class xxxgeomatAssetManager:
     def __init__(self):
         self.geoDict = {}
         self.matDict = {}
@@ -129,6 +239,8 @@ class AssetManager:
         mesh = Mesh(geo,mat, name='default')
         self.add_mesh(mesh)
 
+    def names(self):
+        return list(self.meshDict.keys())
     def get_geo(self, name):
         return self.geoDict.get(name, self.geoDict['default'] )
     def get_mat(self, name):
@@ -147,13 +259,7 @@ class AssetManager:
         self.add_mat(asset.mat)
 
 
-    #===============
-    def load(self, fdir):
-        1
 
-def asset_load(directory):
-    for file in os.listdir(directory):
-        3
 
 # # gltf, obj, tttp.
 # -box

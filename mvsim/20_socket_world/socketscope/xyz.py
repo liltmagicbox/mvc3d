@@ -71,8 +71,10 @@ class XYZ:
         "not support self==1"
         xx,yy,zz = other
         return self.x!=xx or self.y!=yy or self.z!=zz
-        #return not self == other
+        #return not self == other    
     
+    def __neg__(self):#unary
+        return self.__class__(-self.x,-self.y,-self.z)
     #below not occur iteration, maybe faster. not x,y,z = self
     #=== newxyz = xyz+value
     def __add__(self, value):

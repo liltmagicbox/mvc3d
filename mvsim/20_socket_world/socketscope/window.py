@@ -7,9 +7,34 @@ from time import perf_counter
 from asset import AssetManager
 from actorcamera import Camera,Actor
 
+def main():
+    window = Window()
+    window.mouse_lock=True
+
+    objname = 'yup/objobjects.obj'
+    names = window.asset.load_obj(objname)#filename is nomore important!!! ..or obj exclusive filename one mesh..
+    print(objname, names)
+    #names = window.asset.names()
+    window.add_actor(pos=[1,0,-5],mesh='Cube')
+    window.run()
+
+# Actor.mesh only one!
+# merge texture , or all will be split!
+#obj load is not that important. it'sname is 'o {name}'.
+
+#gltf will load-save entire scene. blender will export it.  filename nomore important!
+#blender object = [(geo1),(geo2),mat1,mat2] .geo is not directly but mat is bound.
+#lets object name ->Actor, and Cannon_BallRAxis for child and axis guide.(slide, rotate)
+
+# obj shall be mesh loader. Hat Cloth Bird .. in charactor, will be Actors, really good!
+#obj merge texture, mat if  you want move together. not ue4-like StaticMeshActor = [geo-mat, geo2-mat2 ..] -seems not bad, however?!...NO! not do this!
+# obj not scene howver, since coord lost.
+# gltf scene loader/saver. even can see browser.! and render oneself!
+
 class Window:
     def __init__(self, size=(640,480), name = 'a window', vsync = True, for_rpi = False ):
         _pre_window_init(for_rpi)
+        #===
         #==window
         w,h = size
         window = glfwCreateWindow(w,h, name, None, None)
@@ -19,6 +44,8 @@ class Window:
         #===settings after window
         vsinterval = 1 if vsync else 0
         glfwSwapInterval(vsinterval)#1 to vsync.. 10 maybe 10x slower monitor hz.        
+        glPointSize(5)
+        glEnable(GL_DEPTH_TEST)
         
         self.window = window
         self.size = size
@@ -28,11 +55,24 @@ class Window:
         self.mouse_xy_before = self.mouse_xy
         self._bind()
         self.camera = Camera(ratio = w/h)
+        self.camera.pos = 0,0,5
+        #self.camera.lookat([0,0,0])
 
         ddict = {'id':5595, 'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
         aa = Actor( **ddict)
         self.scene = [aa]
         self.asset = AssetManager()
+    
+    def add_actor(self, id=None, pos=None,rot=None,scale=None,mesh=None):
+        id = 9955 if not id else id
+        pos = [0,0,0] if not pos else pos
+        rot = [0,0,0] if not rot else rot
+        scale = [1,1,1] if not scale else scale
+        mesh = 'default' if not mesh else mesh
+        
+        ddict = {'id':id, 'pos':pos,'rot':rot,'scale':scale, 'mesh':mesh}
+        actor = Actor( **ddict)
+        self.scene.append(actor)
 
     
     def _bind(self):        
@@ -102,8 +142,12 @@ class Window:
         for i in inputs:
             if i['key']=='D':
                 self.camera.pos.x+=0.1
-            if i['key']=='A':
+            elif i['key']=='A':
                 self.camera.pos.x-=0.1
+            elif i['key']=='S':
+                self.camera.pos.z+=0.1
+            elif i['key']=='W':
+                self.camera.pos.z-=0.1
 
         
     def update(self,dt):
@@ -113,7 +157,9 @@ class Window:
         self.camera.rotate_dxdy(dx,dy)
         self.mouse_xy_before = x,y
 
-        print(dt)
+        for actor in self.scene:
+            actor.rot.y+=0.0031
+        #print(dt)
         1#simulator.tick(dt)
         view_update_data = {
         '5549':{'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1]},
@@ -136,15 +182,15 @@ class Window:
         #===behold and see!
         #ddict = {'pos':[0,0,0],'rot':[0,0,0],'scale':[1,1,1], 'mesh':'default'}
         x,y = self.mouse_xy
-        print(x,y)
-
         X,Y = 2*x-1, 2*y-1
 
         vpmat = self.camera.get_vpmat()      
 
         for actor in self.scene:
             #actor.pos = (X,Y,0)
-            modelmat = actor.get_modelmat()
+            modelmat = actor.get_modelmat()                        
+            #meshes = self.asset.get_drawmesh(actor.mesh)
+            #for mesh in meshes:
             mesh = self.asset.get_mesh(actor.mesh)
             mat,geo = mesh.mat,mesh.geo
 
@@ -214,15 +260,10 @@ def _pre_window_init(for_rpi ):
     #glfwWindowHint(GLFW_SAMPLES,4)#MSAA works fine. without glEnable(GL_MULTISAMPLE).
     
 
+if __name__ == '__main__':
+    
+    main()
 
-
-
-window = Window()
-window.mouse_lock=True
-window.run()
-
-
-exit()
 
 
 
