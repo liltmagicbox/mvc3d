@@ -17,12 +17,14 @@ def main():
     objname = 'yup/objobjects.obj'
     names = window.asset.load_obj(objname)#filename is nomore important!!! ..or obj exclusive filename one mesh..
     print(objname, names)
+    for name in [names]:    
+        window.add_actor(pos=[1,0,-5],mesh = name)
     #names = window.asset.names()
     #blender o+o->object  , join(with diff mat) will be splited like below:
-    window.add_actor(pos=[1,0,-5],mesh='Cube')
-    window.add_actor(pos=[1,0,-5],mesh='Cube_1')
+    #window.add_actor(pos=[1,0,-5],mesh='Cube')
+    #window.add_actor(pos=[1,0,-5],mesh='Cube_1')
     #and another object.
-    window.add_actor(pos=[-2,0,2],mesh='Icosphere')
+    #window.add_actor(pos=[-2,0,2],mesh='Icosphere')
     window.run()
 
 # Actor.mesh only one!
@@ -198,16 +200,19 @@ class Window:
             modelmat = actor.get_modelmat()                        
             #meshes = self.asset.get_drawmesh(actor.mesh)
             #for mesh in meshes:
-            mesh = self.asset.get_mesh(actor.mesh)
-            mat,geo = mesh.mat,mesh.geo
-
-            #========internal draw seq.
-            mat.bind()
-            mat.set_vpmat(vpmat)
-            mat.set_modelmat(modelmat)
+            #actor.mesh is abstracted mesh. while asset.get_mesh is real draw mesh.
             
-            geo.bind()
-            geo.draw()
+            for draw_mesh in self.asset.get_draw_meshes(actor.mesh):
+                mat,geo = draw_mesh.mat,draw_mesh.geo
+
+                #========internal draw seq.
+                #abstracted. we don't know vao kinds.! thats the point.
+                mat.bind()
+                mat.set_vpmat(vpmat)
+                mat.set_modelmat(modelmat)
+                
+                geo.bind()
+                geo.draw()
     #===========================
     @property
     def mouse_xy(self):

@@ -189,8 +189,9 @@ def _get_numname(name):
 
 class AssetManager:
     def __init__(self):
-        self.meshDict = {}
         #self.drawmeshDict = {}
+        self.absmeshDict = {}#for actor.mesh = 'string!'
+        self.meshDict = {}
         #==========add defaults
         #vertn,fragn = 'vert.txt','frag.txt'
         texdict = {'diffuse':'frz.png'}
@@ -212,6 +213,8 @@ class AssetManager:
         return list(self.meshDict.keys())
     def get_mesh(self, name):
         return self.meshDict.get(name, self.meshDict['default'] )
+    def get_draw_meshes(self, name):
+        return self.absmeshDict.get(name, [self.get_mesh(name)] )
     def add_mesh(self,mesh):
         self.meshDict[mesh.name] = mesh
     
@@ -222,12 +225,13 @@ class AssetManager:
     #     self.drawmeshDict[drawname] = meshes
     #===============
     def load_obj(self, fdir):
+        obj_file_name = os.path.splitext( os.path.split(fdir)[1] )[0]
         meshes_for_actor = {}
         
         mesh_dicts = get_mesh_dicts(fdir)#and mtl parsed data??
         for mesh_dict in mesh_dicts:#this will break hat and body..            
             fdir_obj = mesh_dict['obj']
-            name = mesh_dict.get('name', os.path.splitext( os.path.split(fdir)[1] )[0] )
+            name = mesh_dict.get('name', obj_file_name )
             meshes_for_actor[name] = []
 
             fdir_mtl = mesh_dict['mtl']
@@ -264,9 +268,21 @@ class AssetManager:
                 while mesh.name in self.meshDict:
                     mesh.name = _get_numname(mesh.name)
                 self.add_mesh(mesh)
-                #meshes_for_actor[name].append(mesh)
+                meshes_for_actor[name].append(mesh)
             #self.add_drawmesh(name, meshes_for_actor[name])
-        return list(meshes_for_actor.keys())
+        
+        #for name, meshes in meshes_for_actor.items():
+        #    self.namesDict[name] = meshes
+        
+        #self.absmeshDict.update(meshes_for_actor) #for obj-> mesh1, mesh2 (it was useless, since all origin broken!)
+        meshes = []
+        for value in meshes_for_actor.values():
+            meshes.extend(value)
+        ofn = _get_numname(obj_file_name)
+        self.absmeshDict[ofn] = meshes #WEEP. WE SPENT LOTS TIME FOR NAME OF MESH.. gltf will do so.
+        return ofn        
+        #return meshes_for_actor
+        #lets obj (broken origin) all stick together. can't even rotate!! gltf will bring sep.actors.
         
         # gltf wins all. not do too much! since gltf can screen-capture. obj lost vertex origin,rot axis!
         #lets obj just single loader, spread by origin.
