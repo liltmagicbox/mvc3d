@@ -57,6 +57,17 @@ class Material(Countess):
 
     def bind(self):#need values to int,float kinds..?
         self.shader.bind()
+        for key,value in self.valueDict.items():
+            # if value == None:
+            #     continue
+            if isinstance(value, float):
+                self.shader.set_float(key, value)
+                continue
+            elif isinstance(value, int):
+                self.shader.set_int(key, value)
+                continue            
+            if len(value)==3:                
+                self.shader.set_vec3(key, *value)
         for texture in self.textureDict.values():
             texture.bind()
     def set_vpmat(self, vpmat):
@@ -98,7 +109,6 @@ vertn = """
 #version 410 core
 layout (location = 0) in vec3 pos;
 layout (location = 1) in vec2 uv;
-
 out vec2 uv_out;
 
 uniform mat4 Model;
@@ -122,12 +132,50 @@ uniform sampler2D tex0;
 uniform sampler2D tex1;
 
 void main()
-{
-    //FragColor = vec4(1,0,1,1);
+{   
     FragColor = texture2D(tex0, uv_out);
 }
 """
 
+
+vertn_mtl_notex = """
+#version 410 core
+layout (location = 0) in vec3 pos;
+layout (location = 1) in vec2 uv;
+out vec2 uv_out;
+out vec3 diffuse_color;
+
+uniform mat4 Model;
+uniform mat4 ViewProjection;
+
+uniform vec3 Kd;//uint
+//uniform float Kd;//uint
+
+void main() 
+{
+    //gl_Position = vec4( pos, 1);
+    gl_Position = ViewProjection * Model * vec4(pos,1);
+    uv_out = uv;
+    diffuse_color = Kd;
+}
+"""
+
+fragn_mtl_notex = """
+#version 410 core
+
+in vec2 uv_out;
+in vec3 diffuse_color;
+out vec4 FragColor;
+
+uniform sampler2D tex0;
+uniform sampler2D tex1;
+
+void main()
+{   
+    FragColor = vec4(diffuse_color,1);
+    //FragColor = texture2D(tex0, uv_out);
+}
+"""
 
 def _get_numname(name):
     ddd = name.rfind('_')
@@ -149,7 +197,7 @@ class AssetManager:
         mat_dict = {'texture': texdict }
         mat = Material(vertn,fragn, mat_dict, name='default')
         #self.add_mat(mat)
-        
+
         vao_attrs={    'position' : [ 0,0,0, 1,0,0, 1,1,0, 0,1,0,],
                         'uv' : [ 0,0,  1,0,  1,1,  0,1 ],    }
         vao_indices = [0,1,2,0,2,3,]
@@ -199,12 +247,15 @@ class AssetManager:
                 material = mdict['material']
                 smoothing = mdict.get('smoothing')              
                 mat_dict = material_dict.get(material, {'diffuse':'default.png'} )
-                mat_dict.update( {'smoothing':smoothing} )
-                if not 'texture' in mat_dict:
-                    mat_dict['texture'] = {'diffuse':'default.png'}
+                if smoothing:
+                    mat_dict.update( {'smoothing':smoothing} )
 
-                #vertn, fragn = ('ha','ba')#mtl
-                mat = Material(vertn, fragn, mat_dict)
+                if not 'texture' in mat_dict:
+                    #mat_dict['texture'] = {'diffuse':'default.png'}
+                    vvv, fff = vertn_mtl_notex, fragn_mtl_notex
+                else:
+                    vvv, fff = vertn, fragn
+                mat = Material(vvv, fff, mat_dict)
             
                 #only mesh survives,from now. geo,mat is bound. both devliers abstract interface.
                 mesh = Mesh(geo,mat, name=name)

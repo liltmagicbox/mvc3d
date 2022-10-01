@@ -88,7 +88,9 @@ def _load_obj(fdir, verbose=False):
         elif values[0] == 's':
             smoothing = values[1]
             mesh_data = object_data['meshes'][-1]
-            mesh_data['smoothing'] = smoothing
+            if smoothing == 'off':
+                val = 0
+            mesh_data['smoothing'] = val
 
         elif values[0] == 'f':
             mesh_data = object_data['meshes'][-1]
@@ -250,7 +252,8 @@ def get_material_dict(fdir, verbose = False):
         elif values[0] == 'Ka':
             aaa = values[1:]
         elif values[0] == 'Kd':
-            mat_dict['Kdiffuse'] = values[1:]
+            val = values[1:]
+            mat_dict['Kd'] = tuple(map(float,val))
         elif values[0] == 'Ks':
             smoothness = values[1:]
         elif values[0] == 'Ke':
