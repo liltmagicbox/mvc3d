@@ -9,7 +9,8 @@ def main():
     targetdir = 'yup'
     filename = 'objobjects.obj'
     objdir = os.path.join(targetdir,filename)
-    get_meshes(objdir, 1)
+    x = get_mesh_dicts(objdir, 1)
+    print(get_material_dict(x[0]['mtl']))
 
 def _load_obj(fdir, verbose=False):
     """
@@ -213,12 +214,70 @@ def _parse_obj(objects, verbose=False):
 
 
 
-def get_meshes(fdir, verbose = False):
+def get_mesh_dicts(fdir, verbose = False):
     print('////////loading////////') if verbose else 1
     x = _load_obj(fdir,verbose)
     print('////////parsing////////') if verbose else 1
     x = _parse_obj(x,verbose)
     return x
+
+
+
+
+def get_material_dict(fdir, verbose = False):
+    mats = {}
+    mat_dict = {}
+    
+    for line in open(fdir, 'r', encoding = 'utf-8'):
+        if line.startswith('#'):
+            continue        
+        values = line.split()
+        if not values:
+            continue
+        #==============
+
+        if values[0] == 'newmtl':
+            if mat_dict:
+                if 'name' in mat_dict:
+                    mats[mat_dict['name']] = mat_dict
+                    mat_dict = {}#here re-write appaired.!
+            mat_name = values[1]
+            mat_dict['name'] = mat_name
+
+        elif values[0] == 'Ns':
+            specular = values[1]
+
+        elif values[0] == 'Ka':
+            aaa = values[1:]
+        elif values[0] == 'Kd':
+            mat_dict['Kdiffuse'] = values[1:]
+        elif values[0] == 'Ks':
+            smoothness = values[1:]
+        elif values[0] == 'Ke':
+            eee = values[1:]
+        
+        elif values[0] == 'Ni':
+            iii = values[1]
+        elif values[0] == 'd':
+            ddd = values[1]
+        elif values[0] == 'illum':
+            illum = values[1]
+
+        elif values[0] == 'map_Kd':
+            map_diffuse = values[1]
+            if not 'texture' in mat_dict:
+                mat_dict['texture'] = {}
+            mat_dict['texture']['diffuse'] = diffuse#major shall be texture, not x,y,z!
+        
+    if 'name' in mat_dict:
+        mats[mat_dict['name']] = mat_dict
+    return mats
+
+        
+        
+
+
+
 
 if __name__ == '__main__':
     main()

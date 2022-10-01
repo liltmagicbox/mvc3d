@@ -11,11 +11,18 @@ def main():
     window = Window()
     window.mouse_lock=True
 
+    #obj for single actor, multi parts. , notfor scene(vert coords, rotaxis broken)
+    #if you want all merged together, not blender.join but atlas texture, use single material!
+
     objname = 'yup/objobjects.obj'
     names = window.asset.load_obj(objname)#filename is nomore important!!! ..or obj exclusive filename one mesh..
     print(objname, names)
     #names = window.asset.names()
+    #blender o+o->object  , join(with diff mat) will be splited like below:
     window.add_actor(pos=[1,0,-5],mesh='Cube')
+    window.add_actor(pos=[1,0,-5],mesh='Cube_1')
+    #and another object.
+    window.add_actor(pos=[-2,0,2],mesh='Icosphere')
     window.run()
 
 # Actor.mesh only one!

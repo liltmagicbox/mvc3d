@@ -1,4 +1,4 @@
-from objman import get_meshes
+from objman import get_mesh_dicts, get_material_dict
 
 def main():
     from window import Window
@@ -25,7 +25,7 @@ class Material(Countess):
     """vertn,fragn filedir or string.
     texture_dict = {'diffuse':'diffuse.png','normal':'normal_ver4.png'}
     """
-    def __init__(self, vertn,fragn, texture_dict, name=None):
+    def x__init__(self, vertn,fragn, texture_dict, name=None):
         vertn,fragn = self._is_shader_path(vertn,fragn)
         shader = Shader(vertn,fragn)
 
@@ -36,8 +36,26 @@ class Material(Countess):
         self.shader = shader
         self.textureDict = texdict
         self.name = self._namefit(name)
+    def __init__(self, vertn,fragn, mat_dict, name=None):
+        vertn,fragn = self._is_shader_path(vertn,fragn)
+        shader = Shader(vertn,fragn)
+        
+        texdict = {}
+        if 'texture' in mat_dict:
+            texture_dict = mat_dict.pop('texture')
+            for channel,fdir in texture_dict.items():
+                texdict[channel] = Texture(fdir)
 
-    def bind(self):
+        valueDict = {}
+        valueDict.update(mat_dict)
+        
+        self.shader = shader
+        self.valueDict = valueDict
+        self.textureDict = texdict
+        #print(self.valueDict,self.textureDict)
+        self.name = self._namefit(name)
+
+    def bind(self):#need values to int,float kinds..?
         self.shader.bind()
         for texture in self.textureDict.values():
             texture.bind()
@@ -128,7 +146,8 @@ class AssetManager:
         #==========add defaults
         #vertn,fragn = 'vert.txt','frag.txt'
         texdict = {'diffuse':'frz.png'}
-        mat = Material(vertn,fragn, texdict, name='default')
+        mat_dict = {'texture': texdict }
+        mat = Material(vertn,fragn, mat_dict, name='default')
         #self.add_mat(mat)
         
         vao_attrs={    'position' : [ 0,0,0, 1,0,0, 1,1,0, 0,1,0,],
@@ -157,12 +176,14 @@ class AssetManager:
     def load_obj(self, fdir):
         meshes_for_actor = {}
         
-        meshes = get_meshes(fdir)
-        for mesh_dict in meshes:#this will break hat and body..
+        mesh_dicts = get_mesh_dicts(fdir)#and mtl parsed data??
+        for mesh_dict in mesh_dicts:#this will break hat and body..            
             fdir_obj = mesh_dict['obj']
-            fdir_mtl = mesh_dict['mtl']
             name = mesh_dict.get('name', os.path.splitext( os.path.split(fdir)[1] )[0] )
             meshes_for_actor[name] = []
+
+            fdir_mtl = mesh_dict['mtl']
+            material_dict = get_material_dict(fdir_mtl)
             #===name shall be 1. Mesh is draw object, not actor.            
             
             #print(mesh.keys())dict_keys(['obj', 'mtl', 'name', 'meshes'])
@@ -174,15 +195,20 @@ class AssetManager:
                 indices = mdict['indices']
                 geo = Geometry(vert_dict,indices)
 
+                #===mat
                 material = mdict['material']
-                smoothing = mdict.get('smoothing')
+                smoothing = mdict.get('smoothing')              
+                mat_dict = material_dict.get(material, {'diffuse':'default.png'} )
+                mat_dict.update( {'smoothing':smoothing} )
+                if not 'texture' in mat_dict:
+                    mat_dict['texture'] = {'diffuse':'default.png'}
+
                 #vertn, fragn = ('ha','ba')#mtl
-                mat = Material(vertn, fragn, {'diffuse':'yup/boximg.png'})            
+                mat = Material(vertn, fragn, mat_dict)
             
                 #only mesh survives,from now. geo,mat is bound. both devliers abstract interface.
                 mesh = Mesh(geo,mat, name=name)
-                mesh.fdir_obj = fdir_obj
-                mesh.fdir_mtl = fdir_mtl
+                mesh.fdir = fdir_obj
 
                 while mesh.name in self.meshDict:
                     mesh.name = _get_numname(mesh.name)
