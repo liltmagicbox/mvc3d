@@ -3,17 +3,29 @@ from OpenGL.GL import *
 import numpy as np
 
 
-vao_attrs={
+# vao_attrs={
+#     'position' : np.array([ 0,0,0, 1,0,0, 1,1,0, 0,1,0,]).astype('float32'),
+#     'uv' : np.array([ 0,0,  1,0,  1,1,  0,1 ]).astype('float32'),
+#     }
+# vao_indices = np.array([0,1,2,0,2,3,]).astype('uint')
+
+mesh_dict={
     'position' : np.array([ 0,0,0, 1,0,0, 1,1,0, 0,1,0,]).astype('float32'),
     'uv' : np.array([ 0,0,  1,0,  1,1,  0,1 ]).astype('float32'),
+    'indices' : np.array([0,1,2,0,2,3,]).astype('uint')
     }
-vao_indices = np.array([0,1,2,0,2,3,]).astype('uint')
-
 
 class VAO:
-    def __init__(self, attr_dict, indices):        
+    """not supports [ [] [] ]! narrow input rule!"""
+    def __init__(self, mesh_dict):
+        #indices = mesh_dict.pop('indices')#this will break input dict!
+        vert_dict = {}
+        vert_dict.update(mesh_dict)#input saved.
+        indices = vert_dict.pop('indices')
+
+        vert_count = len(vert_dict['position'])//3
         attrlist=[]
-        for data_array in attr_dict.values():
+        for data_array in vert_dict.values():
             attrlist.append(data_array)
         vertices = np.concatenate(attrlist).astype('float32')        
         indices = np.array(indices).astype('uint32')
@@ -29,12 +41,12 @@ class VAO:
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
 
         #====
-        vert_count = len(attr_dict['position'])//3
+        vert_count = vert_count
         float_size = np.float32(0.0).nbytes #to ensure namespace-safe.        
         offset = ctypes.c_void_p(0)
         loc = 0#NOTE:opengl core no attr 0.
         
-        for attr_name, data in attr_dict.items():
+        for attr_name, data in vert_dict.items():
             data_len = len(data)
             size = data_len//vert_count#size 2,3,4
             stride = 0#size * float_size xyzuv, stride shall be 3forxyz, 2foruv..maybe?

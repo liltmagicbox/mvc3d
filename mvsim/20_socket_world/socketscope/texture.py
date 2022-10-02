@@ -25,6 +25,9 @@ class Texture:
         except:
             print("Failed to load texture")
         self.texture = texture
+
+    def update(self, data):
+        1
     
     def bind(self):
         glBindTexture(GL_TEXTURE_2D, self.texture)

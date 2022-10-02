@@ -181,14 +181,13 @@ def _parse_mesh_data(mesh_data, verbose):
     #===new_vert_dict from indices. reuse multex!
     #'pos':[]
     #'uv':[]
-    new_vert_dict = {key:[] for key in vert_dict.keys()}
+    mesh_dict = {key:[] for key in vert_dict.keys()}
     for multex in multex_dict.keys():# [ ((x,y,z),(uv)),, ]
-        for idx, vert_list in enumerate(new_vert_dict.values()):
+        for idx, vert_list in enumerate(mesh_dict.values()):
             vert_list.extend( multex[idx] )
+    mesh_dict['indices'] = indices
     #============
-
-    output_dict['vert_dict'] = new_vert_dict
-    output_dict['indices'] = indices
+    output_dict['mesh_dict'] = mesh_dict#this mesh_dict is iMeshDict
     return output_dict
 
 
@@ -197,14 +196,12 @@ def _parse_obj(objects, verbose=False):
     
     for object_data in objects:
         #print(object_data['name'])#good for debug
-        new_object_data = _parse_object_data(object_data, verbose)
-        
+        new_object_data = _parse_object_data(object_data, verbose)        
+        #print(new_object_data['meshes'][0].keys())
+        #['obj', 'mtl', 'name', 'meshes']
+        #dict_keys(['material', 'smoothing', 'mesh_dict'])        
         if verbose:
             for key,value in new_object_data.items():
-                print(key,len(value))
-                if key == 'vert_dict':
-                    for a,b in value.items():
-                        print(a,b[:22],len(b))
                 if key == 'meshes':
                     for mesh in value:
                         print(mesh.keys())                        
@@ -285,8 +282,6 @@ def get_material_dict(fdir, verbose = False):
 if __name__ == '__main__':
     main()
     
-
-
 
 
 

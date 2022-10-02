@@ -1,4 +1,4 @@
-from objman import get_mesh_dicts, get_material_dict
+import objman
 
 def main():
     from window import Window
@@ -18,43 +18,51 @@ class Countess:
         return name
 
 import os
-
 from shader import Shader
 from texture import Texture
 class Material(Countess):
     """vertn,fragn filedir or string.
     texture_dict = {'diffuse':'diffuse.png','normal':'normal_ver4.png'}
+    ->vertn,fragn, mat_dict, ->mat_dict,finally.
     """
-    def x__init__(self, vertn,fragn, texture_dict, name=None):
-        vertn,fragn = self._is_shader_path(vertn,fragn)
-        shader = Shader(vertn,fragn)
-
-        texdict = {}
-        for channel,fdir in texture_dict.items():
-            texdict[channel] = Texture(fdir)
+    def __init__(self, mat_dict, name=None):
+        #default shall be here, not inside Shader.(cannot access)
+        shader_dict = mat_dict.get('shader',  {'vertex': vertn,'fragment': fragn}  )
+            #for key,value in shader_dict.items():#'vertex','fragment'...
+        # for value in shader_dict.values():
+        #     vertn,fragn = self._is_shader_path(value,fragn)#all gone!wow.
+        shader = Shader(shader_dict)#Shader(vertn,fragn)
         
-        self.shader = shader
-        self.textureDict = texdict
-        self.name = self._namefit(name)
-    def __init__(self, vertn,fragn, mat_dict, name=None):
-        vertn,fragn = self._is_shader_path(vertn,fragn)
-        shader = Shader(vertn,fragn)
+        valueDict = {}
+        valueDict.update(mat_dict)
         
         texdict = {}
-        if 'texture' in mat_dict:
-            texture_dict = mat_dict.pop('texture')
+        if 'texture' in valueDict:
+            #texture_dict = mat_dict.pop('texture')#this will break origin dict!
+            texture_dict = valueDict.pop('texture')
             for channel,fdir in texture_dict.items():
                 texdict[channel] = Texture(fdir)
 
-        valueDict = {}
-        valueDict.update(mat_dict)
         
         self.shader = shader
         self.valueDict = valueDict
         self.textureDict = texdict
         #print(self.valueDict,self.textureDict)
         self.name = self._namefit(name)
-
+    def update(self, key, value):
+        """diffuse:data or color=[1,2,3] or smoothing=3 .."""
+        if key in self.textureDict:
+            texture = self.textureDict[key]
+            texture.update(value)
+        else:
+            self.valueDict[key] = value#not load and setvec3 actor.color=1,2,3 ,direcly, but thisway.  
+        #from help of:
+        #mat.texture[0].update(data)
+        #mat.color.update(value)
+        #mat.update('texture',0,value)
+        #mat.update('diffuse',value)
+        #mat.update('color',value)
+    
     def bind(self):#need values to int,float kinds..?
         self.shader.bind()
         for key,value in self.valueDict.items():
@@ -74,22 +82,12 @@ class Material(Countess):
         self.shader.set_mat4('ViewProjection', vpmat)
     def set_modelmat(self, modelmat):
         self.shader.set_mat4('Model', modelmat)
-
-    #===
-    @staticmethod
-    def _is_shader_path(vertn,fragn):
-        if os.path.exists(vertn):
-            with open(vertn, 'r', encoding='utf-8') as f:
-                vertn = f.read()
-        if os.path.exists(fragn):
-            with open(fragn, 'r', encoding='utf-8') as f:
-                fragn = f.read()    
-        return vertn,fragn
+    
 
 from vao import VAO
 class Geometry(Countess):
-    def __init__(self, attr_dict, indices, name=None):
-        vao = VAO(attr_dict, indices)
+    def __init__(self, mesh_dict, name=None):
+        vao = VAO(mesh_dict)
         self.vao = vao
         self.name = self._namefit(name)
     def bind(self):
@@ -196,13 +194,13 @@ class AssetManager:
         #vertn,fragn = 'vert.txt','frag.txt'
         texdict = {'diffuse':'frz.png'}
         mat_dict = {'texture': texdict }
-        mat = Material(vertn,fragn, mat_dict, name='default')
+        mat = Material(mat_dict, name='default')
         #self.add_mat(mat)
 
-        vao_attrs={    'position' : [ 0,0,0, 1,0,0, 1,1,0, 0,1,0,],
-                        'uv' : [ 0,0,  1,0,  1,1,  0,1 ],    }
-        vao_indices = [0,1,2,0,2,3,]
-        geo = Geometry(vao_attrs,vao_indices, name='default')
+        mesh_dict={    'position' : [ 0,0,0, 1,0,0, 1,1,0, 0,1,0,],
+                        'uv' : [ 0,0,  1,0,  1,1,  0,1 ],
+                        'indices':[0,1,2,0,2,3,]    }
+        geo = Geometry( mesh_dict, name='default')
         #self.add_geo(geo)
         
         mesh = Mesh(geo,mat, name='default')        
@@ -228,14 +226,14 @@ class AssetManager:
         obj_file_name = os.path.splitext( os.path.split(fdir)[1] )[0]
         meshes_for_actor = {}
         
-        mesh_dicts = get_mesh_dicts(fdir)#and mtl parsed data??
+        mesh_dicts = objman.get_mesh_dicts(fdir)#and mtl parsed data??
         for mesh_dict in mesh_dicts:#this will break hat and body..            
             fdir_obj = mesh_dict['obj']
             name = mesh_dict.get('name', obj_file_name )
             meshes_for_actor[name] = []
 
             fdir_mtl = mesh_dict['mtl']
-            material_dict = get_material_dict(fdir_mtl)
+            material_dict = objman.get_material_dict(fdir_mtl)
             #===name shall be 1. Mesh is draw object, not actor.            
             
             #print(mesh.keys())dict_keys(['obj', 'mtl', 'name', 'meshes'])
@@ -243,23 +241,22 @@ class AssetManager:
 
             #print(mesh_dict['meshes'][0].keys())#(['material', 'smoothing', 'vert_dict', 'indices'])            
             for mdict in mesh_dict['meshes']:
-                vert_dict = mdict['vert_dict']
-                indices = mdict['indices']
-                geo = Geometry(vert_dict,indices)
+                real_mesh_dict = mdict['mesh_dict']
+                geo = Geometry(real_mesh_dict)
 
                 #===mat
                 material = mdict['material']
                 smoothing = mdict.get('smoothing')              
-                mat_dict = material_dict.get(material, {'diffuse':'default.png'} )
+                mat_dict = material_dict.get(material, {} )
                 if smoothing:
                     mat_dict.update( {'smoothing':smoothing} )
-
                 if not 'texture' in mat_dict:
                     #mat_dict['texture'] = {'diffuse':'default.png'}
                     vvv, fff = vertn_mtl_notex, fragn_mtl_notex
                 else:
                     vvv, fff = vertn, fragn
-                mat = Material(vvv, fff, mat_dict)
+                mat_dict['shader'] = {'vertex':vvv,'fragment':fff}
+                mat = Material(mat_dict)
             
                 #only mesh survives,from now. geo,mat is bound. both devliers abstract interface.
                 mesh = Mesh(geo,mat, name=name)
