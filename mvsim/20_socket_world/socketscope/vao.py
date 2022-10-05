@@ -42,16 +42,23 @@ attr_dict = {
     'weight':[1,0,0,0],
 }
 
-
+#too many dicts.. _dict became internal transfer form, usually. minimize user need to know.
+# def mesh2vert(mesh_dict):
+#     {key:value for key,value in mesh_dict.items() if (key!='position' or key!='indices') }
+# def mesh2attr(mesh_dict):
+#     {key:value for key,value in mesh_dict.items() if (key!='position' or key!='indices') }
 
 class VAO:
     """not supports [ [] [] ]! narrow input rule!
     Geometry as abstract interface, VAO is concrete specific object. Geometry abss.
     """    
-    def __init__(self, position, indices, attr_dict=None):#it fits narrow input rule,finally
+    #do not break inputdict.
+    def __init__(self, position, indices, attr_dict=None):#it fits narrow input rule,finally        
         # process input
-        vert_dict = self.get_vert_dict(position,attr_dict)
-        vertices = self.vertdict_to_vertices(vert_dict)
+        #vert_dict = self.get_vert_dict(position,attr_dict)
+        vert_dict = {'position':position}
+        vert_dict.update(attr_dict)    
+        vertices = self.get_vertices(vert_dict)
         indices = np.array(indices).astype('uint32')
 
         # vertices , indices => GPU
@@ -83,15 +90,21 @@ class VAO:
         self.ID = VAO
         self.VBO = VBO
         self.EBO = EBO
-        self.points = len(indices)
+        self.indices = len(indices)
 
-    def destroy(self):
-        self.ID
+    def __del__(self):
+        glBindVertexArray(0)
+        glBindBuffer(0)
+        glDeleteVertexArrays(1, [self.ID])
+        glDeleteBuffers(3, [self.VBO,self.EBO])
+
     def bind(self):
         glBindVertexArray(self.ID)
     def draw(self):
         #GL_POINTS GL_LINE_STRIP GL_TRIANGLES        
-        glDrawElements(GL_TRIANGLES, self.points, GL_UNSIGNED_INT, None)
+        glDrawElements(GL_TRIANGLES, self.indices, GL_UNSIGNED_INT, None)
+    def draw_instanced(self, count):
+        glDrawElementsInstanced(GL_TRIANGLES, self.indices, GL_UNSIGNED_INT, None, count)
 
     def update_position(self,position):
         """position first appears. learngl5-7"""
@@ -103,10 +116,13 @@ class VAO:
         offset = ctypes.c_void_p(0)#position first!hahaha
         glBufferSubData(GL_ARRAY_BUFFER, offset, vertices.nbytes, vertices)
     
-    def update_vert_dict(self, position, attr_dict):
+
+    #hope not that used.. ..normal maybe recalculated, yes. and bone weight..
+    #def update_vert_dict(self, position, attr_dict):
+    def update_vert_dict(self, vert_dict):
         """thats the way! vert_dict is without indices. ..Geometry holds MeshDict(fulldata), hmm.. """
-        vert_dict = self.get_vert_dict(position, attr_dict)
-        vertices = self.get_vertices(vert_dict)        
+        #vert_dict = self.get_vert_dict(position, attr_dict)
+        vertices = self.get_vertices(vert_dict)    
         VAO = self.ID
         VBO = self.VBO
         glBindVertexArray(VAO) #gpu bind VAO
@@ -121,11 +137,11 @@ class VAO:
             attrlist.append(data_array)
         vertices = np.concatenate(attrlist).astype('float32')
         return vertices
-    @staticmethod
-    def get_vert_dict(position, attr_dict):
-        vert_dict = {'position':position}
-        vert_dict.update(attr_dict)
-        return vert_dict
+    # @staticmethod
+    # def get_vert_dict(position, attr_dict):
+    #     vert_dict = {'position':position}
+    #     vert_dict.update(attr_dict)
+    #     return vert_dict
 
 
 #wee neeed updateee , positions only., atleast.

@@ -1,5 +1,9 @@
 from math import radians, tan, sqrt
 from math import cos,sin
+#http://www.cgdev.net/blog/485.html
+#Rodrigues’ Rotation Formula
+#R = I+ sin(th)C + 1-cos(th)C**2
+#C = [0, -lz, ly, lz, 0, -lx, -ly, lx, 0]
 
 def eye4():
     mat = [0.0]*16

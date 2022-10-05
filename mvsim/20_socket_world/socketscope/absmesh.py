@@ -57,7 +57,77 @@ class Animator:
         #just get!
 
 #================================
+
+#a missile is attached to plane.
+#missile is unactivated, not acts like actor.
+#when fired, missile became actor. (worldpos = parentpos+localpos)
+
+#a plane lands carrier
+#plane became node, not actor. (internal local pos)
+#plane disappears. carrier.plane.append(plane)
+
+#1 prepare
+carrgeo = Geometry(geo_dict)
+carrmat = Material(mat_dict)
+carrgeo.mat = carrmat
+# absmesh is not actor
+#carrier = StaticMesh(carrgeo)
+#plane = StaticMesh(planegeo)
+
+#2 absmesh is actor.mesh
+carrier = Carrier(mesh = StaticMesh(carrgeo) )
+plane = Plane(mesh = StaticMesh(planegeo) )
+
+#Geometry has no pos. nor SM.
+#lets, SM has Geos,, ? NO! SM not receies dt. -really?
+#WE DON'T HAVE THE POWER.
+#flush old memory, fill new 3d one..
+# actor.child = [actor] and parent brings out draw.   and actor.mesh.instanced. all actor-absmesh, not geokinds.fine.
+
+def land(self,plane):
+    self.attach(plane)
+def attach(self,actor):
+    #prevent update tick form system
+    #hide from rootscene node?? so we cannot even search by name/id?
+    #or rootscene is node, and we draw node..?-seems great. +and search access update the node. wow..
+    
+    #actor.parent = self
+    #self.child[actor.name] = actor
+    #we need, active child vs frozen child.
+    #node -> node update  / way1deep way2recursive
+    #lets:
+    #0 scene is node. all draw,update,search targets node.
+    #1 node hides child.
+    #3 recursive update.
+    #3 if want child, ask to parent. no direct access.
+    #3 
+    #update, child will from parent. thats all.
+    #actordraw is geo.draw, so geo has merged..? or absmesh merged..?-think this is proper..
+
+Actor Mesh Geometry
+Node
+
+ParticleActor(Mesh)#draw Mesh.
+ParticleMesh(Geometry)#access shader.
+
+#https://docs.python.org/3/library/collections.html#collections.namedtuple
+#Point = namedtuple('Point', ['x', 'y'])
+AxisHelper = StaticMesh( geo=axisgeo, name='axis_helper')
+
+#ChainMap is dict.update(bdict) kept old keys.
+
+SM(geo,mat1)
+SM(geo,mat2)
+SM(geo,mat3)
+
+geo1 = geo.mat
+geo.mat = mat1
+geo.mat = mat2
+geo.mat = mat3
+#we attach inside of init.
+
 class AbsMesh:
+    """is not Actor, abstracted draw object."""
     def get_uniform_dict(self):
         return {key:actor.value for key,value in self.shaderuniformDict.items()}#love this line!          
     def set_uniform(self,key,value):
@@ -92,23 +162,37 @@ class StaticMesh(Animator):
     """geometry.mat"""
     def __init__(self, geometry):
         Animator.__init__(self)
-        self.geometries = []
+        #self.geometries = [] keep single form,aspossible.
         #self.matvar = 0actor, you mean it right?
         self.instanced = False
+       
+        @material.setter
+    def material(self,material):
+        if material.skeletal:
+            if 'weight' in self.mesh_dict:
+                self.material = material
+            else:
+                raise ValueError('skam material requires weight of vert_dict')
+
     def draw(self, actor):
         for geometry in self.geometries:#check overhead. 80%s will be Mesh.
             geometry.draw(actor)
+
 
 #https://docs.unrealengine.com/5.0/ko/geometry-script-users-guide/
 class DynamicMesh(Animator):#is from ue5! and seems it's not Actor..?
     1
 
 #??? if tree.. TreeActor all.. for draw..
+#https://docs.python.org/3/library/collections.html#collections.Counter
+#Counter('abracadabra').most_common(3)
+#[('a', 5), ('b', 2), ('r', 2)]#wow.
 
 def draw_seq(self):
     instanced_Dict = {}#instanced_Dict is visually great.
     absmesh_Dict = {}
-
+    absmesh_set = set()#object not {}hashable but can added!
+    #defaultdict(set)-this 'name':{objects}
     # per-draw & fill instanced dict.
     for actor in actors:
         absmesh = actor.mesh
