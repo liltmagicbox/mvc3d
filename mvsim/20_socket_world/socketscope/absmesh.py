@@ -58,115 +58,96 @@ class Animator:
 
 #================================
 
-#a missile is attached to plane.
-#missile is unactivated, not acts like actor.
-#when fired, missile became actor. (worldpos = parentpos+localpos)
-
-#a plane lands carrier
-#plane became node, not actor. (internal local pos)
-#plane disappears. carrier.plane.append(plane)
-
-#1 prepare
-carrgeo = Geometry(geo_dict)
-carrmat = Material(mat_dict)
-carrgeo.mat = carrmat
-# absmesh is not actor
-#carrier = StaticMesh(carrgeo)
-#plane = StaticMesh(planegeo)
-
-#2 absmesh is actor.mesh
-carrier = Carrier(mesh = StaticMesh(carrgeo) )
-plane = Plane(mesh = StaticMesh(planegeo) )
-
-#Geometry has no pos. nor SM.
-#lets, SM has Geos,, ? NO! SM not receies dt. -really?
-#WE DON'T HAVE THE POWER.
-#flush old memory, fill new 3d one..
-# actor.child = [actor] and parent brings out draw.   and actor.mesh.instanced. all actor-absmesh, not geokinds.fine.
-
-def land(self,plane):
-    self.attach(plane)
-def attach(self,actor):
-    #prevent update tick form system
-    #hide from rootscene node?? so we cannot even search by name/id?
-    #or rootscene is node, and we draw node..?-seems great. +and search access update the node. wow..
-    
-    #actor.parent = self
-    #self.child[actor.name] = actor
-    #we need, active child vs frozen child.
-    #node -> node update  / way1deep way2recursive
-    #lets:
-    #0 scene is node. all draw,update,search targets node.
-    #1 node hides child.
-    #3 recursive update.
-    #3 if want child, ask to parent. no direct access.
-    #3 
-    #update, child will from parent. thats all.
-    #actordraw is geo.draw, so geo has merged..? or absmesh merged..?-think this is proper..
-
-Actor Mesh Geometry
-Node
-
-ParticleActor(Mesh)#draw Mesh.
-ParticleMesh(Geometry)#access shader.
-
-#https://docs.python.org/3/library/collections.html#collections.namedtuple
-#Point = namedtuple('Point', ['x', 'y'])
-AxisHelper = StaticMesh( geo=axisgeo, name='axis_helper')
-
-#ChainMap is dict.update(bdict) kept old keys.
-
-SM(geo,mat1)
-SM(geo,mat2)
-SM(geo,mat3)
-
-geo1 = geo.mat
-geo.mat = mat1
-geo.mat = mat2
-geo.mat = mat3
-#we attach inside of init.
-
 class AbsMesh:
     """is not Actor, abstracted draw object."""
-    def get_uniform_dict(self):
-        return {key:actor.value for key,value in self.shaderuniformDict.items()}#love this line!          
-    def set_uniform(self,key,value):
-        1
     
-    def set_uniform_by_dict(self,uniform_dict):
-        #parse , set_vec3 kinds.
-        [self.geometry.set_uniform(key,value) for key,value in uniform_dict.items()]#set uniforms.
-    
-    def draw(self, vpmat, modelmat, uniform_dict):
-        self.geometry.draw(vpmat, modelmat, uniform_dict)# depth rule.
-    def draw_instanced
-        self.geometry.draw_instanced(vpmat, modelmat, uniform_dict)
+    @staticmethod
+    def _draw(geometry,material, vpmat, modelmat, uni_dict=None):
+        assert len(vpmat) == 16
+        assert len(modelmat) == 16
+        material.bind()
+        material.set_vpmat(vpmat)
+        material.set_modelmat(modelmat)
+        if uni_dict:
+            material.set_uniform(uni_dict)
 
-    #@SKMEsh
-    def draw(self, vpmat, modelmat):#we do here,finally. haha! even shared geo, can draw each actor.# no actor again.
-        "instanced, uniform set if by draw_seq. absmesh binds, not here"
-        mat = self.mat
-        mat.bind()
-        mat.set_vpmat(vpmat)
-        mat.set_modelmat( actor.get_modelmat() )
-        if mat.skeletal:            
-        if geo.skeletal:
-            mat.set_pose(actor.pose)#since pose is just attr of actor concept.
-        self.vao.bind()
-        self.vao.draw()
-        #ignmore above. we dont need to know those.
-        #self.geometry.draw_pose(vpmat, modelmat, uniform_dict, pose=self.pose)#here decides what to order. ->Geometry
-        self.geometry.draw(vpmat, modelmat, uniform_dict, self.pose)#here decides what to order. ->Geometry
+        #self.geometry.draw(vpmat, modelmat, uniform_dict)# depth rule.
+        geometry.draw()# depth rule.-what rule?? geo don't need to know whatever not in it.
+    
+    @staticmethod
+    def _draw_instanced(geometry,material, vpmat, modelmat_i, uni_dict_i=None):
+        assert len(vpmat) == 16
+        assert len(modelmat_i[0]) == 16#this checks [[]], 16 in once!
+        count = len(modelmat_i)
+
+        material.bind()
+        material.set_vpmat(vpmat)
+        material.set_modelmat(modelmat_i)
+        if uni_dict_i:
+            material.set_uniform(uni_dict_i)
+        
+        geometry.draw_instanced(count)
+    #will be used for draw or ways.
+    #==============
+    # def set_uniform(self,key,value):
+    #     1    
+    # def get_uniform_dict(self):
+    #     return {key:actor.value for key,value in self.shaderuniformDict.items()}#love this line!          
+    # def set_uniform_by_dict(self,uniform_dict):
+    #     #parse , set_vec3 kinds.
+    #     [self.geometry.set_uniform(key,value) for key,value in uniform_dict.items()]#set uniforms.    
+
+    # #@SKMEsh
+    # def xxdraw(self, vpmat, modelmat):#we do here,finally. haha! even shared geo, can draw each actor.# no actor again.
+    #     "instanced, uniform set if by draw_seq. absmesh binds, not here"
+    #     mat = self.mat
+    #     mat.bind()
+    #     mat.set_vpmat(vpmat)
+    #     mat.set_modelmat( actor.get_modelmat() )
+    #     if mat.skeletal:            
+    #     if geo.skeletal:
+    #         mat.set_pose(actor.pose)#since pose is just attr of actor concept.
+    #     self.vao.bind()
+    #     self.vao.draw()
+    #     #ignmore above. we dont need to know those.
+    #     #self.geometry.draw_pose(vpmat, modelmat, uniform_dict, pose=self.pose)#here decides what to order. ->Geometry
+    #     self.geometry.draw(vpmat, modelmat, uniform_dict, self.pose)#here decides what to order. ->Geometry
+
+#1 geo,mat in 1 SM!
+# try:            
+#     assert len(geometry) == len(material)
+# except TypeError:
+#     pass
+#"""geometry.mat"""nomore!
+#Animator
+#Animator.__init__
+
+class StaticMesh:
+    def __init__(self, geometry, material):
+        self.geometry = geometry
+        self.material = material    
+    def __repr__(self):
+        return f"{self.__class__.__name__} {self.geometry, self.material}"
+
+    def draw(self, vpmat,modelmat, uni_dict=None):
+        AbsMesh._draw(self.geometry,self.material, vpmat, modelmat, uni_dict)#uni_dict contains pose
+    def draw_instanced(self, vpmat,modelmat_i, uni_dict_i=None):
+        AbsMesh._draw_instanced(self.geometry,self.material, vpmat, modelmat_i, uni_dict_i)
+
+exit()
+#class StaticMeshActor(Animator):1
 
 class StaticMesh(Animator):
     """geometry.mat"""
-    def __init__(self, geometry):
+    def __init__(self, *geometry):
+        self.geometries = [*geometry]
+
         Animator.__init__(self)
         #self.geometries = [] keep single form,aspossible.
         #self.matvar = 0actor, you mean it right?
         self.instanced = False
        
-        @material.setter
+    @material.setter
     def material(self,material):
         if material.skeletal:
             if 'weight' in self.mesh_dict:
@@ -176,7 +157,7 @@ class StaticMesh(Animator):
 
     def draw(self, actor):
         for geometry in self.geometries:#check overhead. 80%s will be Mesh.
-            geometry.draw(actor)
+            geometry.draw(actor)#first it was ,weird.
 
 
 #https://docs.unrealengine.com/5.0/ko/geometry-script-users-guide/
@@ -298,3 +279,85 @@ class ParticleMesh(Animator):
             igeo.set(instanced_Dict)
             igeo.draw()
 
+
+
+
+
+
+
+
+
+
+
+
+
+#=======================
+
+#a missile is attached to plane.
+#missile is unactivated, not acts like actor.
+#when fired, missile became actor. (worldpos = parentpos+localpos)
+
+#a plane lands carrier
+#plane became node, not actor. (internal local pos)
+#plane disappears. carrier.plane.append(plane)
+
+#1 prepare
+carrgeo = Geometry(geo_dict)
+carrmat = Material(mat_dict)
+carrgeo.mat = carrmat
+# absmesh is not actor
+#carrier = StaticMesh(carrgeo)
+#plane = StaticMesh(planegeo)
+
+#2 absmesh is actor.mesh
+carrier = Carrier(mesh = StaticMesh(carrgeo) )
+plane = Plane(mesh = StaticMesh(planegeo) )
+
+#Geometry has no pos. nor SM.
+#lets, SM has Geos,, ? NO! SM not receies dt. -really?
+#WE DON'T HAVE THE POWER.
+#flush old memory, fill new 3d one..
+# actor.child = [actor] and parent brings out draw.   and actor.mesh.instanced. all actor-absmesh, not geokinds.fine.
+
+def land(self,plane):
+    self.attach(plane)
+def attach(self,actor):
+    1
+    #prevent update tick form system
+    #hide from rootscene node?? so we cannot even search by name/id?
+    #or rootscene is node, and we draw node..?-seems great. +and search access update the node. wow..
+    
+    #actor.parent = self
+    #self.child[actor.name] = actor
+    #we need, active child vs frozen child.
+    #node -> node update  / way1deep way2recursive
+    #lets:
+    #0 scene is node. all draw,update,search targets node.
+    #1 node hides child.
+    #3 recursive update.
+    #3 if want child, ask to parent. no direct access.
+    #3 
+    #update, child will from parent. thats all.
+    #actordraw is geo.draw, so geo has merged..? or absmesh merged..?-think this is proper..
+
+#Actor Mesh Geometry
+Node
+
+ParticleActor(Mesh)#draw Mesh.
+ParticleMesh(Geometry)#access shader.
+
+#https://docs.python.org/3/library/collections.html#collections.namedtuple
+#Point = namedtuple('Point', ['x', 'y'])
+AxisHelper = StaticMesh( geo=axisgeo, name='axis_helper')
+
+#ChainMap is dict.update(bdict) kept old keys.
+
+SM(geo,mat1)
+SM(geo,mat2)
+SM(geo,mat3)
+
+geo1 = geo.mat
+geo.mat = mat1
+geo.mat = mat2
+geo.mat = mat3
+#we attach inside of init.
