@@ -38,12 +38,12 @@ def make_sections(n, dtype='float32'):
     return [(1, pos), (2, quat)]
 
 
-def producer(conn, transport, port, sndbuf, n_units, hz, duration, dtype):
+def producer(conn, transport, port, sndbuf, n_units, hz, duration, dtype, fec):
     "child process: publish state at a fixed rate, like the sim's net thread."
     if transport == 'tcp':
         caster = FrameCaster(host='127.0.0.1', port=port, sndbuf=sndbuf)
     else:
-        caster = UDPCaster(host='127.0.0.1', port=port)
+        caster = UDPCaster(host='127.0.0.1', port=port, fec=fec)
     while caster.n_viewers == 0:
         time.sleep(0.005)
     sections = make_sections(n_units, dtype)
@@ -108,13 +108,14 @@ def run_scenario(profile_name, variant, base_port):
     cport, rport = base_port, base_port + 1
     transport = 'udp' if variant.startswith('udp') else 'tcp'
     sndbuf = 65536 if variant == 'tcp-64k' else None
-    dtype = 'float16' if variant.endswith('f16') else 'float32'
+    dtype = 'float16' if 'f16' in variant else 'float32'
+    fec = variant.endswith('fec')
 
     ctx = mp.get_context('spawn')
     parent, child = ctx.Pipe()
     proc = ctx.Process(target=producer,
                        args=(child, transport, cport, sndbuf, N_UNITS, HZ,
-                             DURATION + 1.5, dtype),
+                             DURATION + 1.5, dtype, fec),
                        daemon=True)
     proc.start()
     child.close()
@@ -159,8 +160,8 @@ def main():
         if only and name != only:
             continue
         print(f'[{name}]  {prof!r}')
-        for variant in ('tcp', 'tcp-64k', 'udp', 'udp-f16'):
-            if name == 'lan' and variant in ('tcp-64k', 'udp-f16'):
+        for variant in ('tcp', 'tcp-64k', 'udp', 'udp-f16', 'udp-f16-fec'):
+            if name == 'lan' and variant != 'tcp' and variant != 'udp':
                 continue
             run_scenario(name, variant, port)
             port += 10

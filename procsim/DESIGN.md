@@ -191,19 +191,49 @@ UDP 경로에는 (MAC 재시도 한계를 넘어 정말 사라지는) 손실도 
   자체가 불필요** — §2의 로컬 shm 경로 그대로다. 이 절은 스탠드얼론
   뷰어(Quest 브라우저 three.js 등)용.
 
+### 참고: 실제 H.264 VR 스트리머들은 뭘 쓰나
+
+"영상은 당연히 UDP" 아니냐는 직관 점검. [ALVR 위키](https://github.com/alvr-org/ALVR/wiki/How-ALVR-works)
+기준(공개된 유일한 사례): 제어 소켓은 **TCP 고정**, 영상 스트림 소켓은
+TCP/UDP 선택인데 **현재 기본값이 TCP**고 250Mbps까지 잘 동작한다고 명시.
+UDP는 <30Mbps에서 최저지연, ~100Mbps는 throttled UDP. Moonlight(NVIDIA
+GameStream계열)·Steam Link·WebRTC 영상은 UDP 계열(+FEC/NACK), Air Link와
+Virtual Desktop은 비공개 프로토콜. 즉 **"clean LAN + 규율이면 TCP도 영상
+250Mbps까지 감당"이 실전에서 검증된 사실**이고, 우리 측정과도 일치한다.
+
+와이어 패킷에 대한 오해 하나: 어떤 스트리머도 24KB를 한 패킷으로 안 보낸다.
+인코더가 뱉는 프레임(수십~수백KB)을 **MTU 크기(~1.2-1.4KB)로 패킷화**해서
+보낸다(우리 청크와 동일한 구조). 24MB/s(=192Mbit)는 AirLink급 영상
+비트레이트로, 5GHz WiFi 실효 한계권이 맞다 — 그리고 우리 상태 스트림은
+다이어트 후 2~4Mbit로 **그 1/100**이라 대역폭은 애초에 쟁점이 아니다.
+
+### MTU 예산: 왜 1204B인가
+
+```
+ethernet/wifi MTU 1500 - IP 20 - UDP 8               = 1472 사용가능
+인터넷 경로 여유: PPPoE(1492), VPN/터널, IPv6(+20)    → ~1400도 위험할 수 있음
+QUIC이 고른 안전선                                    ≈ 1200
+우리 데이터그램: 페이로드 1184 + 청크헤더 20          = 1204  ✓
+```
+IP 단편화에 절대 기대지 않는다: 단편 하나 손실 = 데이터그램 전체 손실이고,
+단편을 그냥 버리는 중간장비도 흔하다. 큰 데이터그램(예: 24KB)을 보내면
+커널이 조용히 이 함정으로 밀어넣는다.
+
 ### 측정 (`bench_net.py`, 28KB×60Hz=13.5Mbit/s, 뷰어는 2ms마다 staleness 샘플)
 
 ```
 [wifi]      4±3ms, 200Mbit, loss 0.5%
-  tcp      got 59.9/s   stale p50  16  p95  23   max  57ms   stalls 0
-  udp      got 52.8/s   stale p50  18  p95  36   max  73ms   stalls 0
-  udp-f16  got 56.4/s   stale p50  17  p95  28   max  61ms   stalls 0
+  tcp          got 60.1/s   stale p50  16  p95  23   max  26ms   stalls 0
+  udp          got 52.8/s   stale p50  18  p95  36   max  74ms   stalls 0
+  udp-f16      got 56.0/s   stale p50  17  p95  28   max 104ms   stalls 0
+  udp-f16-fec  got 59.6/s   stale p50  16  p95  24   max  41ms   stalls 0
 
 [wifi-bad]  12±8ms, 60Mbit, loss 2%, freeze 150ms/2s
-  tcp      got 56.2/s   stale p50  30  p95  75   max 174ms   stalls 4
-  tcp-64k  got 56.1/s   stale p50  30  p95  79   max 188ms   stalls 4
-  udp      got 36.5/s   stale p50  37  p95 107   max 239ms   stalls 4
-  udp-f16  got 45.6/s   stale p50  32  p95  83   max 189ms   stalls 4
+  tcp          got 56.0/s   stale p50  30  p95  79   max 191ms   stalls 4
+  tcp-64k      got 55.9/s   stale p50  30  p95  81   max 188ms   stalls 4
+  udp          got 35.1/s   stale p50  38  p95 117   max 254ms   stalls 4
+  udp-f16      got 42.8/s   stale p50  33  p95 103   max 204ms   stalls 4
+  udp-f16-fec  got 55.0/s   stale p50  31  p95  77   max 173ms   stalls 4
 ```
 
 읽는 법:
@@ -212,39 +242,73 @@ UDP 경로에는 (MAC 재시도 한계를 넘어 정말 사라지는) 손실도 
    "TCP는 VR에 못 쓴다"는 통념은 **큐잉 규율이 없을 때** 얘기다 — 우리는
    양끝이 1칸 mailbox라 백로그가 원천적으로 안 쌓인다.
 2. **순정 UDP가 오히려 나빴다: 청크 수가 손실을 지수로 증폭한다.**
-   28KB=25청크, 청크 하나만 죽어도 프레임 전체가 죽는다.
-   생존율 = (1-p)^청크수: 2%손실×25청크 → 60% (측정 36.5/60 일치),
-   f16으로 14KB=12청크 → 78% (측정 45.6/60 일치).
-   → **UDP 도입보다 프레임 다이어트가 선행 과제다.**
-3. **스톨 4회는 freeze 자체다** — 어떤 전송계층도 링크 단절 150ms는 못
+   생존율 = (1-p)^청크수: 2%손실×25청크 → 60% (측정 35/60 일치),
+   f16 12청크 → 78% (측정 43/60 근사).
+3. **XOR 패리티 1청크(FEC, +8% 오버헤드)로 UDP가 TCP와 동급이 된다.**
+   청크 하나까지의 손실은 복구되므로 생존율 ≈ (1-p)^n + n·p·(1-p)^n:
+   2%×12청크 → 97% (측정 55/60 일치). udplink에 구현됨(fec=True 기본).
+   → 순서: **다이어트 → FEC → 그 다음에야 UDP가 의미**.
+4. **스톨 4회는 freeze 자체다** — 어떤 전송계층도 링크 단절 150ms는 못
    숨긴다. 이걸 가리는 건 전송이 아니라 **뷰어의 보간/외삽**이다.
-4. tcp-64k(SO_SNDBUF 축소)는 이 비트레이트에선 차이 미미. 대역을 꽉 채우는
-   스트림(수십 Mbit↑)에서 백로그 절단용으로 의미가 생긴다.
 5. 단, 이 모델은 TCP에 낙관적이다: IP 레벨 손실이 TCP까지 뚫고 오는
    환경(혼잡한 2.4GHz, 인터넷 경유)에선 재전송 대기(RTO 최소 ~200ms)가
-   head-of-line 스톨을 만든다. 그 위험이 실측되는 환경이면 UDP(작은 프레임
-   전제)로 넘어갈 근거가 된다.
+   head-of-line 스톨을 만든다. 같은 조건에서 UDP+FEC는 튜닝 없이 동급
+   성능에 그 꼬리 리스크가 없으므로, 원격 경로의 종착지는 UDP+FEC다.
+
+### 시계 문제: sim_time은 시뮬 기계의 시계다
+
+다른 기계에서 staleness/보간을 하려면 클록 오프셋이 필요하다. udplink의
+PING/PONG이 이를 겸한다: 뷰어가 1초마다 PING(t₀ 동봉) → 캐스터가
+PONG(t₀, t_caster) → 뷰어가 `offset = t_caster - (t₀+t₁)/2`를 **최소 RTT
+샘플에서** 채택(큐잉 노이즈 최소인 샘플이 가장 정확). `viewer.age_of(frame)`
+이 보정된 나이를 돌려주고, `viewer.rtt_ms`는 적응형 전송률의 입력이 된다.
+
+### 로컬 공유기(WiFi) 설계 체크리스트
+
+```
+토폴로지   PC(시뮬) ──유선── 공유기 ──무선── 헤드셋   ← 무선 홉은 딱 하나
+라디오     5GHz(가능하면 6E/전용 SSID), 2.4GHz 금지(BT/전자레인지 간섭)
+전송       상태 20~30Hz 스냅샷, 다이어트+FEC로 스냅샷당 5~8KB (2~4Mbit)
+멀티뷰어   유니캐스트 per-viewer (WiFi 멀티캐스트는 최저속도·무ACK라 함정)
+뷰어       보간 버퍼 = 스냅주기 x 1.5 (30Hz면 ~50ms), 끊기면 ~150ms까지 외삽
+입력       컨트롤러/헤드 '조작' 이벤트만 상향, 60~72Hz, 수십B — 아무 경로나
+발견       고정IP 또는 mDNS. PING keepalive가 등록/생존확인 겸함(구현됨)
+공존       영상 스트림(AirLink 등 192Mbit)이 같이 떠도 상태 2~4Mbit는 소음 수준
+```
+
+### 인터넷 경로(원격 뷰어)일 때 추가로
+
+- **여기서부터가 UDP+FEC의 본진이다**: IP 손실이 실제로 TCP를 때리고
+  RTO(≥~200ms) 스톨이 현실이 되는 구간. RTT 20~80ms만큼 보간 버퍼를 키운다.
+- **NAT**: 뷰어→캐스터 단방향 접속이면 캐스터 쪽 포트포워딩 하나로 끝
+  (PING이 밖→안으로 먼저 나가므로 뷰어 쪽 NAT는 자동 통과). P2P가 필요해지면
+  STUN/릴레이 대신 **WireGuard/Tailscale로 묶고 LAN처럼 취급**이 취미 규모의
+  정답 — udplink 코드 변경 zero.
+- **혼잡 예의**: 고정 2~4Mbit는 이미 예의 바른 수준. 지속 서비스로 키우면
+  전달률·rtt_ms 피드백으로 스냅샷 Hz를 낮추는 적응 로직(간단한 knob) 추가.
+- **브라우저 뷰어(WebXR)**: raw UDP 불가 → WebSocket으로 시작, 스톨이
+  보이면 WebRTC DataChannel(ordered=false, maxRetransmits=0, python은
+  aiortc)이 브라우저의 UDP. WebTransport(HTTP/3 datagram)는 차기 후보.
+- **보안**: 평문 UDP를 인터넷에 그대로 노출하지 말 것 — Tailscale/WireGuard
+  터널이 인증+암호화를 공짜로 준다.
 
 ### 결론: 단계적 사다리
 
 ```
 0) PC VR            : 네트워크 없음. 로컬 shm 그대로.
 1) 지금 (Quest 브라우저): WebSocket(=TCP) + 양끝 latest-wins + 뷰어 보간.
-                      프레임 바이트는 binary message로 그대로. (브라우저는
-                      raw UDP/TCP 불가 → 어차피 ws가 유일한 즉시 선택지)
-2) 프레임 다이어트    : f16(코덱 지원됨, dtype=1), smallest-three quat,
+                      프레임 바이트는 binary message로 그대로.
+2) 프레임 다이어트    : f16(코덱 지원됨), smallest-three quat,
                       스켈레탈은 애니상태만(§스켈레탈 (c)). 28KB → 5~8KB.
-3) 스냅샷 20~30Hz + 보간: 60Hz로 쏠 이유가 없다. 대역 절반, 손실표면 절반,
-                      staleness는 보간 버퍼(스냅주기 1.5배)로 균일화.
-4) 그래도 스톨이 보이면: WebRTC DataChannel(ordered=false, maxRetransmits=0,
-                      python은 aiortc) = 브라우저에서 쓸 수 있는 UDP.
-                      네이티브 뷰어면 udplink.py 그대로.
+3) 스냅샷 20~30Hz + 보간: 대역 절반, 손실표면 절반, staleness 균일화.
+4) 원격/열악 링크     : UDP+FEC(udplink.py 그대로, fec 기본 on).
+                      브라우저면 WebRTC DataChannel(aiortc).
+                      인터넷이면 Tailscale로 묶어 LAN 취급 + 버퍼 확대.
 ```
 
-- 전송 스택: `udplink.py` = 청크(≤1204B)+오프셋 재조립+latest-wins+HELLO
-  keepalive. 프레임 포맷은 TCP/UDP/ws 어디서나 동일 바이트.
-- 입력(컨트롤러→시뮬)은 작으니(수십B) 뭘로 보내도 된다. 같은 채널 역방향이면
-  충분.
+- 전송 스택: `udplink.py` = 청크(≤1204B)+오프셋 재조립+XOR FEC+latest-wins
+  +PING/PONG(keepalive·RTT·클록오프셋). 프레임 포맷은 TCP/UDP/ws 어디서나
+  동일 바이트.
 - 에뮬레이터(`netlab.py`)는 Windows에서도 도는 순수 파이썬이라, 실제 배포 전
   나쁜 링크 시나리오를 언제든 재현할 수 있다.
 
