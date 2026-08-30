@@ -64,12 +64,13 @@ class FrameCaster:
     """sim side: bind, accept viewers, cast frames to all. one sender thread +
     one mailbox per viewer, so one stalled viewer never stalls the others."""
 
-    def __init__(self, host='127.0.0.1', port=30020):
+    def __init__(self, host='127.0.0.1', port=30020, sndbuf=None):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(8)
         self.addr = self.server.getsockname()
+        self.sndbuf = sndbuf     # small (e.g. 64KB) = less stale backlog on a stalling link
         self._boxes = []            # [(sock, Mailbox)]
         self._lock = threading.Lock()
         self._closing = False
@@ -82,6 +83,8 @@ class FrameCaster:
             except OSError:
                 break
             conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            if self.sndbuf:
+                conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, self.sndbuf)
             box = Mailbox()
             with self._lock:
                 self._boxes.append((conn, box))

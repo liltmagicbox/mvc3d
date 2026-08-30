@@ -3,6 +3,8 @@
 frame.py    binary frame codec (32B header + raw numpy sections)
 shmlink.py  shared-memory latest-wins channel (local, zero-queue)
 socklink.py same frames over tcp (remote / multi-viewer / web bridge)
+udplink.py  same frames over udp (chunked, loss-tolerant, native remote viewers)
+netlab.py   userspace link emulator for testing the network paths
 simproc.py  process host: shm for draw state, pipe for input/control
 
 see DESIGN.md for the whole discussion + benchmark numbers.
@@ -12,4 +14,5 @@ from .frame import (STATE, SCHEMA, EVENT, Frame,
                     meshid_to_kind, kind_to_meshid)
 from .shmlink import ShmChannel
 from .socklink import FrameCaster, FrameViewer, Mailbox
+from .udplink import UDPCaster, UDPViewer
 from .simproc import SimProcess, SimContext

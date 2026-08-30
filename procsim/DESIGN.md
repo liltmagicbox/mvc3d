@@ -12,8 +12,10 @@
 | `shmlink.py` | SharedMemory 3-슬롯 latest-wins 채널 (로컬 기본 경로) |
 | `socklink.py` | 같은 프레임을 TCP로 (원격 / 멀티뷰어 / 웹 브릿지) |
 | `simproc.py` | 프로세스 호스트: shm=상태, Pipe=입력/제어 |
+| `udplink.py` | UDP 전송: 청크·재조립·latest-wins (원격 네이티브 뷰어) |
+| `netlab.py` | 유저스페이스 링크 에뮬레이터 (지연/지터/대역/freeze/손실) |
 | `demo_local.py` | 스레드 vs 프로세스 GIL 비교 데모 |
-| `bench_format.py` / `bench_transport.py` | 아래 수치들의 출처 |
+| `bench_format.py` / `bench_transport.py` / `bench_net.py` | 아래 수치들의 출처 |
 
 ---
 
@@ -171,7 +173,82 @@ slot = [seq u32][nbytes u32][pad][data slot_cap B]
 - 소켓 경로 부활 시 `TCP_NODELAY` 필수(이미 켜둠) — 안 그러면 Nagle이 소형
   프레임을 40ms씩 묶는다.
 
-## 7. 다음 단계
+## 7. 네트워크 경로 (VR) — 로컬호스트 수치는 잊어라
+
+§2의 TCP 수치는 루프백(손실 0, 지연 0.05ms, 대역 무한)이라 원격 뷰어(VR
+헤드셋)에는 무의미하다. 커널 netem이 없는 환경에서도 돌아가는 유저스페이스
+링크 에뮬레이터(`netlab.py`: 실제 소켓 사이에 지연/지터/직렬화/freeze/손실을
+넣는 릴레이)를 만들어 재측정했다. WiFi에서는 802.11 MAC 재전송이 손실을
+지터·처리율붕괴·freeze로 바꿔 보여주므로 TCP 경로에는 손실 대신 그걸 주고,
+UDP 경로에는 (MAC 재시도 한계를 넘어 정말 사라지는) 손실도 준다.
+
+### 대전제: VR에서 네트워크를 타는 것은 "월드 상태"뿐이다
+
+- **헤드 포즈는 절대 왕복하지 않는다.** 헤드셋(브라우저 WebXR 포함)이 로컬
+  트래킹으로 로컬 렌더. 그래서 월드 상태는 30~80ms 지연도 보간으로 흡수된다.
+- 진짜 적은 평균 지연이 아니라 **수백 ms 스톨**(월드가 얼어붙는 순간)이다.
+- PC VR(Quest Link/AirLink, SteamVR)은 렌더가 PC에서 돌므로 **네트워크 논의
+  자체가 불필요** — §2의 로컬 shm 경로 그대로다. 이 절은 스탠드얼론
+  뷰어(Quest 브라우저 three.js 등)용.
+
+### 측정 (`bench_net.py`, 28KB×60Hz=13.5Mbit/s, 뷰어는 2ms마다 staleness 샘플)
+
+```
+[wifi]      4±3ms, 200Mbit, loss 0.5%
+  tcp      got 59.9/s   stale p50  16  p95  23   max  57ms   stalls 0
+  udp      got 52.8/s   stale p50  18  p95  36   max  73ms   stalls 0
+  udp-f16  got 56.4/s   stale p50  17  p95  28   max  61ms   stalls 0
+
+[wifi-bad]  12±8ms, 60Mbit, loss 2%, freeze 150ms/2s
+  tcp      got 56.2/s   stale p50  30  p95  75   max 174ms   stalls 4
+  tcp-64k  got 56.1/s   stale p50  30  p95  79   max 188ms   stalls 4
+  udp      got 36.5/s   stale p50  37  p95 107   max 239ms   stalls 4
+  udp-f16  got 45.6/s   stale p50  32  p95  83   max 189ms   stalls 4
+```
+
+읽는 법:
+
+1. **이 규모에선 TCP+mailbox(latest-wins)가 잘 버틴다.** wifi에서 p95 23ms.
+   "TCP는 VR에 못 쓴다"는 통념은 **큐잉 규율이 없을 때** 얘기다 — 우리는
+   양끝이 1칸 mailbox라 백로그가 원천적으로 안 쌓인다.
+2. **순정 UDP가 오히려 나빴다: 청크 수가 손실을 지수로 증폭한다.**
+   28KB=25청크, 청크 하나만 죽어도 프레임 전체가 죽는다.
+   생존율 = (1-p)^청크수: 2%손실×25청크 → 60% (측정 36.5/60 일치),
+   f16으로 14KB=12청크 → 78% (측정 45.6/60 일치).
+   → **UDP 도입보다 프레임 다이어트가 선행 과제다.**
+3. **스톨 4회는 freeze 자체다** — 어떤 전송계층도 링크 단절 150ms는 못
+   숨긴다. 이걸 가리는 건 전송이 아니라 **뷰어의 보간/외삽**이다.
+4. tcp-64k(SO_SNDBUF 축소)는 이 비트레이트에선 차이 미미. 대역을 꽉 채우는
+   스트림(수십 Mbit↑)에서 백로그 절단용으로 의미가 생긴다.
+5. 단, 이 모델은 TCP에 낙관적이다: IP 레벨 손실이 TCP까지 뚫고 오는
+   환경(혼잡한 2.4GHz, 인터넷 경유)에선 재전송 대기(RTO 최소 ~200ms)가
+   head-of-line 스톨을 만든다. 그 위험이 실측되는 환경이면 UDP(작은 프레임
+   전제)로 넘어갈 근거가 된다.
+
+### 결론: 단계적 사다리
+
+```
+0) PC VR            : 네트워크 없음. 로컬 shm 그대로.
+1) 지금 (Quest 브라우저): WebSocket(=TCP) + 양끝 latest-wins + 뷰어 보간.
+                      프레임 바이트는 binary message로 그대로. (브라우저는
+                      raw UDP/TCP 불가 → 어차피 ws가 유일한 즉시 선택지)
+2) 프레임 다이어트    : f16(코덱 지원됨, dtype=1), smallest-three quat,
+                      스켈레탈은 애니상태만(§스켈레탈 (c)). 28KB → 5~8KB.
+3) 스냅샷 20~30Hz + 보간: 60Hz로 쏠 이유가 없다. 대역 절반, 손실표면 절반,
+                      staleness는 보간 버퍼(스냅주기 1.5배)로 균일화.
+4) 그래도 스톨이 보이면: WebRTC DataChannel(ordered=false, maxRetransmits=0,
+                      python은 aiortc) = 브라우저에서 쓸 수 있는 UDP.
+                      네이티브 뷰어면 udplink.py 그대로.
+```
+
+- 전송 스택: `udplink.py` = 청크(≤1204B)+오프셋 재조립+latest-wins+HELLO
+  keepalive. 프레임 포맷은 TCP/UDP/ws 어디서나 동일 바이트.
+- 입력(컨트롤러→시뮬)은 작으니(수십B) 뭘로 보내도 된다. 같은 채널 역방향이면
+  충분.
+- 에뮬레이터(`netlab.py`)는 Windows에서도 도는 순수 파이썬이라, 실제 배포 전
+  나쁜 링크 시나리오를 언제든 재현할 수 있다.
+
+## 8. 다음 단계
 
 - 렌더 연결: `f = host.read_new()` → `for kind, arr in f.sections:` →
   kind로 VAO/셰이더 찾고 `arr`을 인스턴스 버퍼로 업로드 (axis3d
