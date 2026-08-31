@@ -327,9 +327,15 @@ ws를 쓰는 구간은 `TCP_NODELAY`(안 끄면 소형 프레임이 ~40ms씩 묶
   정답 — udplink 코드 변경 zero.
 - **혼잡 예의**: 고정 2~4Mbit는 이미 예의 바른 수준. 지속 서비스로 키우면
   전달률·rtt_ms 피드백으로 스냅샷 Hz를 낮추는 적응 로직(간단한 knob) 추가.
-- **브라우저 뷰어(WebXR)**: raw UDP 불가 → WebSocket으로 시작, 스톨이
-  보이면 WebRTC DataChannel(ordered=false, maxRetransmits=0, python은
-  aiortc)이 브라우저의 UDP. WebTransport(HTTP/3 datagram)는 차기 후보.
+- **브라우저 뷰어(WebXR)**: raw UDP 불가 — "UDP 웹소켓"은 존재하지 않는다
+  (WebSocket은 RFC 6455가 TCP 위로 정의; HTTP 업그레이드로 시작하는 TCP
+  스트림이다). 브라우저에서 데이터그램이 필요하면 1순위는
+  **WebTransport**(HTTP/3=QUIC=UDP 위, 2026-03부터 전 브라우저 Baseline):
+  URL로 바로 접속(시그널링/ICE 없음), datagram API가 우리 청크와 1:1,
+  서버는 aioquic, LAN 자가서명 인증서는 serverCertificateHashes로 해결.
+  WebRTC DataChannel(ordered=false, maxRetransmits=0, aiortc)은 구형
+  브라우저 호환 폴백. 퀘스트 브라우저는 Chromium 기반이라 상속이 기대되나
+  메타 공식 권고대로 런타임 피처 디텍션으로 확인.
 - **보안**: 평문 UDP를 인터넷에 그대로 노출하지 말 것 — Tailscale/WireGuard
   터널이 인증+암호화를 공짜로 준다.
 
@@ -339,8 +345,9 @@ ws를 쓰는 구간은 `TCP_NODELAY`(안 끄면 소형 프레임이 ~40ms씩 묶
 같은 기계         : shm — 네트워크 없음(PC VR 포함). 항상 최속.
 네트워크 기본     : UDP+FEC(udplink) — 공유기든 인터넷이든 같은 코드.
                    f32 60Hz 그대로 시작. 상태만 태운다.
-브라우저 뷰어 구간 : 어댑터만 교체 — WebSocket(즉시) → WebRTC DataChannel
-                   (UDP 의미론이 필요해지면). 프레임 바이트 동일.
+브라우저 뷰어 구간 : 어댑터만 교체 — WebSocket(즉시, TCP) → WebTransport
+                   datagram(브라우저의 진짜 데이터그램, Baseline) →
+                   WebRTC DataChannel(구형 폴백). 프레임 바이트 동일.
 제어·이벤트       : 신뢰 채널 병행(TCP 컨트롤 소켓 or ack 미니레이어).
 인터넷 추가 조치   : f16/양자화 다이어트, 보간 버퍼 RTT만큼 확대,
                    Tailscale(암호화+NAT 해결), stall·skipped 계측으로 검증.
