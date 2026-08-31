@@ -159,6 +159,7 @@ class UDPViewer:
         self.stat_datagrams = 0
         self.stat_frames = 0
         self.stat_fec_recovered = 0
+        self.stat_skipped = 0          # frame_id gaps: loss IS noticed, just not repaired
         self._ping()
         threading.Thread(target=self._recv_forever, daemon=True).start()
 
@@ -223,6 +224,8 @@ class UDPViewer:
 
             done = slot[0] >= total or self._try_fec(slot)
             if done:
+                if self.newest_done and fid > self.newest_done + 1:
+                    self.stat_skipped += fid - self.newest_done - 1
                 self.newest_done = fid
                 self.stat_frames += 1
                 self.box.put(bytes(slot[2]))
